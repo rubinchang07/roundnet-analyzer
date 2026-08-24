@@ -6,22 +6,42 @@ function App() {
 
   const [videoURL, setVideoURL] = useState(null)
   const [serves, setServes] = useState([])
-  const [selectedPlayer, setSelectedPlayer] = useState("None")
 
   const [players, setPlayers] = useState([
-    "Player 1",
-    "Player 2",
-    "Player 3",
-    "Player 4"
+    { id: "player-1", name: "Player 1" },
+    { id: "player-2", name: "Player 2" },
+    { id: "player-3", name: "Player 3" },
+    { id: "player-4", name: "Player 4" }
   ])
 
+  const [selectedPlayerId, setSelectedPlayerId] = useState(null)
+
   const teams = [
-    [0, 1],
-    [2, 3]
+    ["player-1", "player-2"],
+    ["player-3", "player-4"]
   ]
 
-  const team1 = teams[0].map((index) => players[index])
-  const team2 = teams[1].map((index) => players[index])
+  function getPlayerName(playerId) {
+    return (
+      players.find((player) => player.id === playerId)?.name ??
+      "Unknown Player"
+    )
+  }
+
+  function getPlayerTeam(playerId) {
+    if (teams[0].includes(playerId)) {
+      return "Team 1"
+    }
+
+    if (teams[1].includes(playerId)) {
+      return "Team 2"
+    }
+
+    return null
+  }
+
+  const team1 = teams[0].map(getPlayerName)
+  const team2 = teams[1].map(getPlayerName)
 
   const [selectedServeType, setSelectedServeType] = useState("None")
   const [serveStatus, setServeStatus] = useState(null)
@@ -33,26 +53,18 @@ function App() {
 
   const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
   const [pendingOutcome, setPendingOutcome] = useState(null)
-  const [expandedPlayer, setExpandedPlayer] = useState(null)
 
-  const currentPointServer =
+  const [expandedPlayerId, setExpandedPlayerId] = useState(null)
+  const [expandedTeam, setExpandedTeam] = useState(null)
+
+  const currentPointServerId =
     currentPointServes.length > 0
-      ? currentPointServes[0].player
+      ? currentPointServes[0].playerId
       : null
 
-  function getPlayerTeam(player) {
-    const playerIndex = players.indexOf(player)
-
-    if (teams[0].includes(playerIndex)) {
-      return "Team 1"
-    }
-
-    if (teams[1].includes(playerIndex)) {
-      return "Team 2"
-    }
-
-    return null
-  }
+  // -----------------------------
+  // Team statistics
+  // -----------------------------
 
   const teamStats = ["Team 1", "Team 2"].map((teamName) => {
     const teamPoints = points.filter(
@@ -63,7 +75,7 @@ function App() {
 
     const servingPoints = points.filter(
       (point) =>
-        getPlayerTeam(point.server) === teamName
+        getPlayerTeam(point.serverId) === teamName
     )
 
     const servingPointsWon = servingPoints.filter(
@@ -72,7 +84,7 @@ function App() {
 
     const receivingPoints = points.filter(
       (point) =>
-        getPlayerTeam(point.server) !== teamName
+        getPlayerTeam(point.serverId) !== teamName
     )
 
     const receivingPointsWon = receivingPoints.filter(
@@ -87,7 +99,7 @@ function App() {
 
     const teamDoubleFaults = points.filter(
       (point) =>
-        getPlayerTeam(point.server) === teamName &&
+        getPlayerTeam(point.serverId) === teamName &&
         point.outcome === "Double Fault"
     ).length
 
@@ -102,6 +114,10 @@ function App() {
       doubleFaults: teamDoubleFaults
     }
   })
+
+  // -----------------------------
+  // Match controls
+  // -----------------------------
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -121,15 +137,21 @@ function App() {
       setPendingWinningTeam(null)
       setPendingOutcome(null)
 
-      setSelectedPlayer("None")
+      setSelectedPlayerId(null)
       setSelectedHand("None")
       setSelectedServeType("None")
+
+      setExpandedPlayerId(null)
     }
   }
 
-  function markServe(result, faultType = null, playedThrough = null) {
+  function markServe(
+    result,
+    faultType = null,
+    playedThrough = null
+  ) {
     if (
-      selectedPlayer === "None" ||
+      selectedPlayerId === null ||
       selectedHand === "None" ||
       selectedServeType === "None"
     ) {
@@ -143,7 +165,7 @@ function App() {
     const newServe = {
       id: crypto.randomUUID(),
       timestamp: currentTime,
-      player: selectedPlayer,
+      playerId: selectedPlayerId,
       hand: selectedHand,
       type: selectedServeType,
       serveAttempt,
@@ -168,21 +190,25 @@ function App() {
     setServeStatus(null)
     setSelectedFaultType(null)
 
+    // After a fault, keep the same server,
+    // but reset hand and serve type.
     if (serveStatus === "Fault") {
       setSelectedHand("None")
       setSelectedServeType("None")
     }
 
-    const servingTeam = getPlayerTeam(selectedPlayer)
+    const servingTeam =
+      getPlayerTeam(selectedPlayerId)
 
-    // Ace
+    // ACE
     if (result === "Ace") {
       const newPoint = {
         id: crypto.randomUUID(),
-        server: selectedPlayer,
+        serverId: selectedPlayerId,
         serves: updatedPointServes,
         winningTeam: servingTeam,
-        outcome: "Ace"
+        outcome: "Ace",
+        responsiblePlayerId: null
       }
 
       setPoints([
@@ -191,17 +217,18 @@ function App() {
       ])
 
       setCurrentPointServes([])
+
       setPendingWinningTeam(null)
       setPendingOutcome(null)
 
-      setSelectedPlayer("None")
+      setSelectedPlayerId(null)
       setSelectedHand("None")
       setSelectedServeType("None")
 
       return
     }
 
-    // Double fault
+    // DOUBLE FAULT
     const isDoubleFault =
       serveAttempt === 2 &&
       serveStatus === "Fault" &&
@@ -215,10 +242,11 @@ function App() {
 
       const newPoint = {
         id: crypto.randomUUID(),
-        server: selectedPlayer,
+        serverId: selectedPlayerId,
         serves: updatedPointServes,
         winningTeam: receivingTeam,
-        outcome: "Double Fault"
+        outcome: "Double Fault",
+        responsiblePlayerId: null
       }
 
       setPoints([
@@ -227,27 +255,32 @@ function App() {
       ])
 
       setCurrentPointServes([])
+
       setPendingWinningTeam(null)
       setPendingOutcome(null)
 
-      setSelectedPlayer("None")
+      setSelectedPlayerId(null)
       setSelectedHand("None")
       setSelectedServeType("None")
     }
   }
 
-  function finishPoint(winningTeam, outcome, player = null) {
+  function finishPoint(
+    winningTeam,
+    outcome,
+    responsiblePlayerId = null
+  ) {
     if (currentPointServes.length === 0) {
       return
     }
 
     const newPoint = {
       id: crypto.randomUUID(),
-      server: currentPointServes[0].player,
+      serverId: currentPointServes[0].playerId,
       serves: currentPointServes,
       winningTeam,
       outcome,
-      responsiblePlayer: player
+      responsiblePlayerId
     }
 
     setPoints([
@@ -260,7 +293,7 @@ function App() {
     setPendingWinningTeam(null)
     setPendingOutcome(null)
 
-    setSelectedPlayer("None")
+    setSelectedPlayerId(null)
     setSelectedHand("None")
     setSelectedServeType("None")
 
@@ -283,14 +316,16 @@ function App() {
   }
 
   function updatePlayerName(index, newName) {
-    const updatedPlayers = [...players]
-
-    updatedPlayers[index] = newName
-    setPlayers(updatedPlayers)
-
-    if (selectedPlayer === players[index]) {
-      setSelectedPlayer(newName)
-    }
+    setPlayers((currentPlayers) =>
+      currentPlayers.map((player, playerIndex) =>
+        playerIndex === index
+          ? {
+            ...player,
+            name: newName
+          }
+          : player
+      )
+    )
   }
 
   // -----------------------------
@@ -363,61 +398,71 @@ function App() {
   const playerStats = players
     .map((player) => {
       const playerServes = serves.filter(
-        (serve) => serve.player === player
+        (serve) =>
+          serve.playerId === player.id
       )
 
       const legal = playerServes.filter(
-        (serve) => serve.legality === "Legal"
+        (serve) =>
+          serve.legality === "Legal"
       ).length
 
       const faults = playerServes.filter(
-        (serve) => serve.legality === "Fault"
+        (serve) =>
+          serve.legality === "Fault"
       ).length
 
       const playerAces = playerServes.filter(
-        (serve) => serve.result === "Ace"
+        (serve) =>
+          serve.result === "Ace"
       ).length
 
       const playerFirstServes = playerServes.filter(
-        (serve) => serve.serveAttempt === 1
+        (serve) =>
+          serve.serveAttempt === 1
       )
 
       const playerFirstServeLegal =
         playerFirstServes.filter(
-          (serve) => serve.legality === "Legal"
+          (serve) =>
+            serve.legality === "Legal"
         ).length
 
       const playerSecondServes = playerServes.filter(
-        (serve) => serve.serveAttempt === 2
+        (serve) =>
+          serve.serveAttempt === 2
       )
 
       const playerSecondServeLegal =
         playerSecondServes.filter(
-          (serve) => serve.legality === "Legal"
+          (serve) =>
+            serve.legality === "Legal"
         ).length
 
       const playerDoubleFaults = points.filter(
         (point) =>
-          point.server === player &&
+          point.serverId === player.id &&
           point.outcome === "Double Fault"
       ).length
 
       const playerKills = points.filter(
         (point) =>
           point.outcome === "Kill" &&
-          point.responsiblePlayer === player
+          point.responsiblePlayerId === player.id
       ).length
 
       const playerOffensiveErrors = points.filter(
         (point) =>
           point.outcome === "Offensive Error" &&
-          point.responsiblePlayer === player
+          point.responsiblePlayerId === player.id
       ).length
 
+      // Serve breakdown
       const serveBreakdown = {}
 
       playerServes.forEach((serve) => {
-        const key = `${serve.hand} ${serve.type}`
+        const key =
+          `${serve.hand} ${serve.type}`
 
         if (!serveBreakdown[key]) {
           serveBreakdown[key] = {
@@ -443,6 +488,7 @@ function App() {
         }
       })
 
+      // Fault breakdown
       const faultBreakdown = {
         Rim: 0,
         High: 0,
@@ -460,10 +506,13 @@ function App() {
         }
       })
 
-      const playerTeam = getPlayerTeam(player)
+      // Point statistics
+      const playerTeam =
+        getPlayerTeam(player.id)
 
       const playerPointsServed = points.filter(
-        (point) => point.server === player
+        (point) =>
+          point.serverId === player.id
       )
 
       const playerServingWins =
@@ -474,7 +523,8 @@ function App() {
 
       const firstServePoints =
         playerPointsServed.filter(
-          (point) => point.serves.length === 1
+          (point) =>
+            point.serves.length === 1
         )
 
       const firstServePointWins =
@@ -485,7 +535,8 @@ function App() {
 
       const secondServePoints =
         playerPointsServed.filter(
-          (point) => point.serves.length === 2
+          (point) =>
+            point.serves.length === 2
         )
 
       const secondServePointWins =
@@ -494,18 +545,9 @@ function App() {
             point.winningTeam === playerTeam
         ).length
 
-      const acePoints =
-        playerPointsServed.filter(
-          (point) => point.outcome === "Ace"
-        ).length
-
-      const doubleFaultPoints =
-        playerPointsServed.filter(
-          (point) => point.outcome === "Double Fault"
-        ).length
-
       return {
-        player,
+        playerId: player.id,
+        playerName: player.name,
 
         totalServes: playerServes.length,
         legal,
@@ -532,9 +574,6 @@ function App() {
         secondServePoints: secondServePoints.length,
         secondServePointWins,
 
-        acePoints,
-        doubleFaultPoints,
-
         kills: playerKills,
         offensiveErrors: playerOffensiveErrors
       }
@@ -551,6 +590,7 @@ function App() {
       <header className="app-header">
         <div>
           <h1>Roundnet Analyzer</h1>
+
           <p>
             Upload match footage, tag serves, and review performance.
           </p>
@@ -587,15 +627,18 @@ function App() {
           </div>
 
           <aside className="controls-panel">
+
+            {/* PLAYERS */}
+
             <div className="control-section">
               <h2>Players</h2>
 
               <div className="player-inputs">
                 {players.map((player, index) => (
                   <input
-                    key={index}
+                    key={player.id}
                     type="text"
-                    value={player}
+                    value={player.name}
                     onChange={(event) =>
                       updatePlayerName(
                         index,
@@ -619,31 +662,38 @@ function App() {
               </div>
             </div>
 
+            {/* SERVER */}
+
             <div className="control-section">
               <h2>Server</h2>
 
               <div className="button-group">
-                {players.map((player, index) => (
+                {players.map((player) => (
                   <button
-                    key={index}
+                    key={player.id}
                     onClick={() =>
-                      setSelectedPlayer(player)
+                      setSelectedPlayerId(
+                        player.id
+                      )
                     }
                     disabled={
-                      currentPointServer !== null &&
-                      currentPointServer !== player
+                      currentPointServerId !== null &&
+                      currentPointServerId !==
+                      player.id
                     }
                     className={
-                      selectedPlayer === player
+                      selectedPlayerId === player.id
                         ? "selected-button"
                         : ""
                     }
                   >
-                    {player}
+                    {player.name}
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* HAND */}
 
             <div className="control-section">
               <h2>Hand</h2>
@@ -677,6 +727,8 @@ function App() {
               </div>
             </div>
 
+            {/* SERVE TYPE */}
+
             <div className="control-section">
               <h2>Serve Type</h2>
 
@@ -704,6 +756,8 @@ function App() {
                 ))}
               </div>
             </div>
+
+            {/* SERVE LEGALITY */}
 
             {videoURL && (
               <div className="control-section">
@@ -739,6 +793,8 @@ function App() {
               </div>
             )}
 
+            {/* LEGAL SERVE RESULT */}
+
             {serveStatus === "Legal" && (
               <div className="control-section">
                 <h2>Serve Result</h2>
@@ -762,6 +818,8 @@ function App() {
                 </div>
               </div>
             )}
+
+            {/* FAULT TYPE */}
 
             {serveStatus === "Fault" && (
               <div className="control-section">
@@ -822,6 +880,8 @@ function App() {
               </div>
             )}
 
+            {/* PLAYED THROUGH */}
+
             {serveStatus === "Fault" &&
               selectedFaultType && (
                 <div className="control-section">
@@ -855,6 +915,8 @@ function App() {
                 </div>
               )}
 
+            {/* POINT WINNER */}
+
             {rallyStarted &&
               !pendingWinningTeam && (
                 <div className="control-section">
@@ -883,6 +945,8 @@ function App() {
                   </div>
                 </div>
               )}
+
+            {/* POINT OUTCOME */}
 
             {pendingWinningTeam &&
               !pendingOutcome && (
@@ -922,6 +986,8 @@ function App() {
                 </div>
               )}
 
+            {/* KILL ATTRIBUTION */}
+
             {pendingOutcome === "Kill" && (
               <div className="control-section">
                 <h2>Who Got the Kill?</h2>
@@ -930,26 +996,30 @@ function App() {
                   {players
                     .filter(
                       (player) =>
-                        getPlayerTeam(player) ===
+                        getPlayerTeam(
+                          player.id
+                        ) ===
                         pendingWinningTeam
                     )
                     .map((player) => (
                       <button
-                        key={player}
+                        key={player.id}
                         onClick={() =>
                           finishPoint(
                             pendingWinningTeam,
                             "Kill",
-                            player
+                            player.id
                           )
                         }
                       >
-                        {player}
+                        {player.name}
                       </button>
                     ))}
                 </div>
               </div>
             )}
+
+            {/* OFFENSIVE ERROR ATTRIBUTION */}
 
             {pendingOutcome ===
               "Offensive Error" && (
@@ -962,21 +1032,23 @@ function App() {
                     {players
                       .filter(
                         (player) =>
-                          getPlayerTeam(player) !==
+                          getPlayerTeam(
+                            player.id
+                          ) !==
                           pendingWinningTeam
                       )
                       .map((player) => (
                         <button
-                          key={player}
+                          key={player.id}
                           onClick={() =>
                             finishPoint(
                               pendingWinningTeam,
                               "Offensive Error",
-                              player
+                              player.id
                             )
                           }
                         >
-                          {player}
+                          {player.name}
                         </button>
                       ))}
                   </div>
@@ -985,7 +1057,10 @@ function App() {
           </aside>
         </section>
 
+        {/* HISTORY */}
+
         <section className="dashboard-grid">
+
           <div className="dashboard-card">
             <h2>Serve History</h2>
 
@@ -1006,7 +1081,10 @@ function App() {
                     }
                   >
                     <strong>
-                      #{index + 1} · {serve.player}
+                      #{index + 1} ·{" "}
+                      {getPlayerName(
+                        serve.playerId
+                      )}
                     </strong>
 
                     <span>
@@ -1060,18 +1138,24 @@ function App() {
                     </strong>
 
                     <span>
-                      Server: {point.server}
+                      Server:{" "}
+                      {getPlayerName(
+                        point.serverId
+                      )}
                     </span>
 
                     <span>
-                      Winner: {point.winningTeam}
+                      Winner:{" "}
+                      {point.winningTeam}
                     </span>
 
                     <span>
                       {point.outcome}
 
-                      {point.responsiblePlayer
-                        ? ` · ${point.responsiblePlayer}`
+                      {point.responsiblePlayerId
+                        ? ` · ${getPlayerName(
+                          point.responsiblePlayerId
+                        )}`
                         : ""}
                     </span>
                   </div>
@@ -1081,12 +1165,16 @@ function App() {
           </div>
         </section>
 
+        {/* STATISTICS */}
+
         <section className="stats-section">
+
           <div className="stats-header">
             <h2>Match Statistics</h2>
           </div>
 
           <div className="stat-card-grid">
+
             <div className="stat-card">
               <span>Total Serves</span>
               <strong>{totalServes}</strong>
@@ -1121,7 +1209,9 @@ function App() {
 
             <div className="stat-card">
               <span>Double Faults</span>
-              <strong>{doubleFaults}</strong>
+              <strong>
+                {doubleFaults}
+              </strong>
             </div>
 
             <div className="stat-card">
@@ -1147,131 +1237,186 @@ function App() {
             </div>
           </div>
 
+          {/* TEAM STATISTICS */}
+
           <div className="stats-subsection">
             <h2>Team Statistics</h2>
 
             <div className="team-stat-grid">
-              {teamStats.map((stats) => (
-                <div
-                  className="team-stat-card"
-                  key={stats.teamName}
-                >
-                  <h3>
-                    {stats.teamName === "Team 1"
-                      ? team1.join(" / ")
-                      : team2.join(" / ")}
-                  </h3>
+              {teamStats.map((stats) => {
+                const teamLabel =
+                  stats.teamName === "Team 1"
+                    ? team1.join(" / ")
+                    : team2.join(" / ")
 
-                  <div className="stat-row">
-                    <span>Points Won</span>
-                    <strong>
-                      {stats.pointsWon}
-                    </strong>
-                  </div>
+                return (
+                  <div
+                    className="team-stat-card"
+                    key={stats.teamName}
+                  >
+                    <div className="player-card-header">
+                      <h3>{teamLabel}</h3>
 
-                  <div className="stat-row">
-                    <span>Serving Points</span>
-                    <strong>
-                      {stats.servingPoints}
-                    </strong>
-                  </div>
+                      <button
+                        onClick={() =>
+                          setExpandedTeam(
+                            expandedTeam === stats.teamName
+                              ? null
+                              : stats.teamName
+                          )
+                        }
+                      >
+                        {expandedTeam === stats.teamName
+                          ? "Hide Details"
+                          : "View Details"}
+                      </button>
+                    </div>
 
-                  <div className="stat-row">
-                    <span>Serving Points Won</span>
-                    <strong>
-                      {stats.servingPointsWon}
-                    </strong>
-                  </div>
+                    {/* OVERVIEW */}
 
-                  <div className="stat-row">
-                    <span>Hold %</span>
-                    <strong>
-                      {percentage(
-                        stats.servingPointsWon,
-                        stats.servingPoints
-                      )}
-                      %
-                    </strong>
-                  </div>
+                    <div className="stat-row">
+                      <span>Points Won</span>
+                      <strong>
+                        {stats.pointsWon}
+                      </strong>
+                    </div>
 
-                  <div className="stat-row">
-                    <span>Receiving Points</span>
-                    <strong>
-                      {stats.receivingPoints}
-                    </strong>
-                  </div>
+                    <div className="stat-row">
+                      <span>Hold %</span>
+                      <strong>
+                        {percentage(
+                          stats.receivingPointsWon,
+                          stats.receivingPoints
+                        )}
+                        %
+                      </strong>
+                    </div>
 
-                  <div className="stat-row">
-                    <span>
-                      Receiving Points Won
-                    </span>
-                    <strong>
-                      {stats.receivingPointsWon}
-                    </strong>
-                  </div>
+                    <div className="stat-row">
+                      <span>Break %</span>
+                      <strong>
+                        {percentage(
+                          stats.servingPointsWon,
+                          stats.servingPoints
+                        )}
+                        %
+                      </strong>
+                    </div>
 
-                  <div className="stat-row">
-                    <span>Break %</span>
-                    <strong>
-                      {percentage(
-                        stats.receivingPointsWon,
-                        stats.receivingPoints
-                      )}
-                      %
-                    </strong>
-                  </div>
+                    <div className="stat-row">
+                      <span>Aces</span>
+                      <strong>
+                        {stats.aces}
+                      </strong>
+                    </div>
 
-                  <div className="stat-row">
-                    <span>Aces</span>
-                    <strong>
-                      {stats.aces}
-                    </strong>
-                  </div>
+                    <div className="stat-row">
+                      <span>Double Faults</span>
+                      <strong>
+                        {stats.doubleFaults}
+                      </strong>
+                    </div>
 
-                  <div className="stat-row">
-                    <span>Double Faults</span>
-                    <strong>
-                      {stats.doubleFaults}
-                    </strong>
+                    {/* DETAILS */}
+
+                    {expandedTeam === stats.teamName && (
+                      <div className="team-details">
+
+                        {stats.servingPoints > 0 && (
+                          <>
+                            <div className="stat-divider" />
+
+                            <h4>Serving Details</h4>
+
+                            <div className="stat-row">
+                              <span>Serving Points</span>
+                              <strong>
+                                {stats.servingPoints}
+                              </strong>
+                            </div>
+
+                            <div className="stat-row">
+                              <span>Serving Points Won</span>
+                              <strong>
+                                {stats.servingPointsWon}
+                              </strong>
+                            </div>
+                          </>
+                        )}
+
+                        {stats.receivingPoints > 0 && (
+                          <>
+                            <div className="stat-divider" />
+
+                            <h4>Receiving Details</h4>
+
+                            <div className="stat-row">
+                              <span>Receiving Points</span>
+                              <strong>
+                                {stats.receivingPoints}
+                              </strong>
+                            </div>
+
+                            <div className="stat-row">
+                              <span>Receiving Points Won</span>
+                              <strong>
+                                {stats.receivingPointsWon}
+                              </strong>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
+
+          {/* PLAYER STATISTICS */}
 
           <div className="stats-subsection">
             <h2>Player Statistics</h2>
 
             {playerStats.length === 0 ? (
               <p className="empty-state">
-                Player statistics will appear after events are recorded.
+                Player statistics will appear
+                after events are recorded.
               </p>
             ) : (
               <div className="player-stat-grid">
+
                 {playerStats.map((stats) => (
                   <div
                     className="player-stat-card"
-                    key={stats.player}
+                    key={stats.playerId}
                   >
+
                     <div className="player-card-header">
-                      <h3>{stats.player}</h3>
+
+                      <h3>
+                        {stats.playerName}
+                      </h3>
 
                       <button
                         onClick={() =>
-                          setExpandedPlayer(
-                            expandedPlayer === stats.player
+                          setExpandedPlayerId(
+                            expandedPlayerId ===
+                              stats.playerId
                               ? null
-                              : stats.player
+                              : stats.playerId
                           )
                         }
                       >
-                        {expandedPlayer === stats.player
+                        {expandedPlayerId ===
+                          stats.playerId
                           ? "Hide Details"
                           : "View Details"}
                       </button>
+
                     </div>
 
-                    {/* OVERVIEW STATS */}
+                    {/* OVERVIEW */}
 
                     <div className="stat-row">
                       <span>Total Serves</span>
@@ -1281,7 +1426,9 @@ function App() {
                     </div>
 
                     <div className="stat-row">
-                      <span>Legal Serve %</span>
+                      <span>
+                        Legal Serve %
+                      </span>
                       <strong>
                         {percentage(
                           stats.legal,
@@ -1306,14 +1453,18 @@ function App() {
                     </div>
 
                     <div className="stat-row">
-                      <span>Offensive Errors</span>
+                      <span>
+                        Offensive Errors
+                      </span>
                       <strong>
                         {stats.offensiveErrors}
                       </strong>
                     </div>
 
                     <div className="stat-row">
-                      <span>Serving Point Win %</span>
+                      <span>
+                        Serving Point Win %
+                      </span>
                       <strong>
                         {percentage(
                           stats.servingWins,
@@ -1323,221 +1474,268 @@ function App() {
                       </strong>
                     </div>
 
-                    {/* DETAILED STATS */}
+                    {/* DETAILS */}
 
-                    {expandedPlayer === stats.player && (
-                      <div className="player-details">
+                    {expandedPlayerId ===
+                      stats.playerId && (
+                        <div className="player-details">
 
-                        {/* SERVING DETAILS */}
-                        {stats.totalServes > 0 && (
-                          <>
-                            <div className="stat-divider" />
+                          {/* SERVING DETAILS */}
 
-                            <h4>Serving Details</h4>
+                          {stats.totalServes > 0 && (
+                            <>
+                              <div className="stat-divider" />
 
-                            <div className="stat-row">
-                              <span>Fault %</span>
-                              <strong>
-                                {percentage(
-                                  stats.faults,
-                                  stats.totalServes
-                                )}
-                                %
-                              </strong>
-                            </div>
+                              <h4>
+                                Serving Details
+                              </h4>
 
-                            <div className="stat-row">
-                              <span>Double Faults</span>
-                              <strong>
-                                {stats.doubleFaults}
-                              </strong>
-                            </div>
-
-                            <div className="stat-row">
-                              <span>1st Serve Legal %</span>
-                              <strong>
-                                {percentage(
-                                  stats.firstServeLegal,
-                                  stats.firstServes
-                                )}
-                                %
-                              </strong>
-                            </div>
-
-                            <div className="stat-row">
-                              <span>2nd Serve Legal %</span>
-                              <strong>
-                                {percentage(
-                                  stats.secondServeLegal,
-                                  stats.secondServes
-                                )}
-                                %
-                              </strong>
-                            </div>
-                          </>
-                        )}
-
-                        {/* POINT STATISTICS */}
-                        {stats.pointsServed > 0 && (
-                          <>
-                            <div className="stat-divider" />
-
-                            <h4>Point Statistics</h4>
-
-                            <div className="stat-row">
-                              <span>Points Served</span>
-                              <strong>
-                                {stats.pointsServed}
-                              </strong>
-                            </div>
-
-                            <div className="stat-row">
-                              <span>Points Won Serving</span>
-                              <strong>
-                                {stats.servingWins}
-                              </strong>
-                            </div>
-
-                            <div className="stat-row">
-                              <span>Serving Point Win %</span>
-                              <strong>
-                                {percentage(
-                                  stats.servingWins,
-                                  stats.pointsServed
-                                )}
-                                %
-                              </strong>
-                            </div>
-
-                            {stats.firstServePoints > 0 && (
                               <div className="stat-row">
-                                <span>1st-Serve Point Win %</span>
+                                <span>
+                                  Fault %
+                                </span>
                                 <strong>
                                   {percentage(
-                                    stats.firstServePointWins,
-                                    stats.firstServePoints
+                                    stats.faults,
+                                    stats.totalServes
                                   )}
                                   %
                                 </strong>
                               </div>
-                            )}
 
-                            {stats.secondServePoints > 0 && (
                               <div className="stat-row">
-                                <span>2nd-Serve Point Win %</span>
+                                <span>
+                                  Double Faults
+                                </span>
+                                <strong>
+                                  {stats.doubleFaults}
+                                </strong>
+                              </div>
+
+                              <div className="stat-row">
+                                <span>
+                                  1st Serve Legal %
+                                </span>
                                 <strong>
                                   {percentage(
-                                    stats.secondServePointWins,
-                                    stats.secondServePoints
+                                    stats.firstServeLegal,
+                                    stats.firstServes
                                   )}
                                   %
                                 </strong>
                               </div>
-                            )}
-                          </>
-                        )}
 
-                        {/* SERVE BREAKDOWN */}
-                        {stats.totalServes > 0 && (
-                          <>
-                            <div className="stat-divider" />
+                              <div className="stat-row">
+                                <span>
+                                  2nd Serve Legal %
+                                </span>
+                                <strong>
+                                  {percentage(
+                                    stats.secondServeLegal,
+                                    stats.secondServes
+                                  )}
+                                  %
+                                </strong>
+                              </div>
+                            </>
+                          )}
 
-                            <h4>Serve Breakdown</h4>
+                          {/* POINT STATISTICS */}
 
-                            {Object.entries(
-                              stats.serveBreakdown
-                            ).map(
-                              ([serveName, serveStats]) => (
-                                <div
-                                  className="breakdown-card"
-                                  key={serveName}
-                                >
-                                  <strong>
-                                    {serveName}
-                                  </strong>
+                          {stats.pointsServed > 0 && (
+                            <>
+                              <div className="stat-divider" />
 
-                                  <span>
-                                    Attempts: {serveStats.attempts}
-                                  </span>
+                              <h4>
+                                Point Statistics
+                              </h4>
 
-                                  <span>
-                                    Legal:{" "}
-                                    {percentage(
-                                      serveStats.legal,
-                                      serveStats.attempts
-                                    )}
-                                    %
-                                  </span>
+                              <div className="stat-row">
+                                <span>
+                                  Points Served
+                                </span>
+                                <strong>
+                                  {stats.pointsServed}
+                                </strong>
+                              </div>
 
-                                  <span>
-                                    Faults:{" "}
-                                    {percentage(
-                                      serveStats.faults,
-                                      serveStats.attempts
-                                    )}
-                                    %
-                                  </span>
+                              <div className="stat-row">
+                                <span>
+                                  Points Won Serving
+                                </span>
+                                <strong>
+                                  {stats.servingWins}
+                                </strong>
+                              </div>
 
-                                  <span>
-                                    Aces: {serveStats.aces}
-                                  </span>
+                              <div className="stat-row">
+                                <span>
+                                  Serving Point Win %
+                                </span>
+                                <strong>
+                                  {percentage(
+                                    stats.servingWins,
+                                    stats.pointsServed
+                                  )}
+                                  %
+                                </strong>
+                              </div>
 
-                                  <span>
-                                    Ace Rate:{" "}
-                                    {percentage(
-                                      serveStats.aces,
-                                      serveStats.attempts
-                                    )}
-                                    %
-                                  </span>
-                                </div>
-                              )
-                            )}
-                          </>
-                        )}
+                              {stats.firstServePoints >
+                                0 && (
+                                  <div className="stat-row">
+                                    <span>
+                                      1st-Serve Point Win %
+                                    </span>
+                                    <strong>
+                                      {percentage(
+                                        stats.firstServePointWins,
+                                        stats.firstServePoints
+                                      )}
+                                      %
+                                    </strong>
+                                  </div>
+                                )}
 
-                        {/* FAULT BREAKDOWN */}
-                        {stats.faults > 0 && (
-                          <>
-                            <div className="stat-divider" />
+                              {stats.secondServePoints >
+                                0 && (
+                                  <div className="stat-row">
+                                    <span>
+                                      2nd-Serve Point Win %
+                                    </span>
+                                    <strong>
+                                      {percentage(
+                                        stats.secondServePointWins,
+                                        stats.secondServePoints
+                                      )}
+                                      %
+                                    </strong>
+                                  </div>
+                                )}
+                            </>
+                          )}
 
-                            <h4>Fault Breakdown</h4>
+                          {/* SERVE BREAKDOWN */}
 
-                            {Object.entries(
-                              stats.faultBreakdown
-                            )
-                              .filter(
-                                ([, count]) => count > 0
-                              )
-                              .map(
-                                ([faultType, count]) => (
+                          {stats.totalServes > 0 && (
+                            <>
+                              <div className="stat-divider" />
+
+                              <h4>
+                                Serve Breakdown
+                              </h4>
+
+                              {Object.entries(
+                                stats.serveBreakdown
+                              ).map(
+                                ([
+                                  serveName,
+                                  serveStats
+                                ]) => (
                                   <div
                                     className="breakdown-card"
-                                    key={faultType}
+                                    key={serveName}
                                   >
                                     <strong>
-                                      {faultType}
+                                      {serveName}
                                     </strong>
 
                                     <span>
-                                      Count: {count}
+                                      Attempts:{" "}
+                                      {
+                                        serveStats.attempts
+                                      }
                                     </span>
 
                                     <span>
-                                      Share of Faults:{" "}
+                                      Legal:{" "}
                                       {percentage(
-                                        count,
-                                        stats.faults
+                                        serveStats.legal,
+                                        serveStats.attempts
+                                      )}
+                                      %
+                                    </span>
+
+                                    <span>
+                                      Faults:{" "}
+                                      {percentage(
+                                        serveStats.faults,
+                                        serveStats.attempts
+                                      )}
+                                      %
+                                    </span>
+
+                                    <span>
+                                      Aces:{" "}
+                                      {
+                                        serveStats.aces
+                                      }
+                                    </span>
+
+                                    <span>
+                                      Ace Rate:{" "}
+                                      {percentage(
+                                        serveStats.aces,
+                                        serveStats.attempts
                                       )}
                                       %
                                     </span>
                                   </div>
                                 )
                               )}
-                          </>
-                        )}
-                      </div>
-                    )}
+                            </>
+                          )}
+
+                          {/* FAULT BREAKDOWN */}
+
+                          {stats.faults > 0 && (
+                            <>
+                              <div className="stat-divider" />
+
+                              <h4>
+                                Fault Breakdown
+                              </h4>
+
+                              {Object.entries(
+                                stats.faultBreakdown
+                              )
+                                .filter(
+                                  ([, count]) =>
+                                    count > 0
+                                )
+                                .map(
+                                  ([
+                                    faultType,
+                                    count
+                                  ]) => (
+                                    <div
+                                      className="breakdown-card"
+                                      key={faultType}
+                                    >
+                                      <strong>
+                                        {faultType}
+                                      </strong>
+
+                                      <span>
+                                        Count:{" "}
+                                        {count}
+                                      </span>
+
+                                      <span>
+                                        Share of Faults:{" "}
+                                        {percentage(
+                                          count,
+                                          stats.faults
+                                        )}
+                                        %
+                                      </span>
+                                    </div>
+                                  )
+                                )}
+                            </>
+                          )}
+                        </div>
+                      )}
                   </div>
                 ))}
               </div>
