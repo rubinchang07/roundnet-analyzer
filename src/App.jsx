@@ -28,6 +28,7 @@ function App() {
 
   const [points, setPoints] = useState([])
   const [currentPointServes, setCurrentPointServes] = useState([])
+  const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
 
   const currentPointServer =
     currentPointServes.length > 0
@@ -159,7 +160,7 @@ function App() {
     }
   }
 
-  function finishPoint(winningTeam) {
+  function finishPoint(winningTeam, outcome) {
     if (currentPointServes.length === 0) {
       return
     }
@@ -169,11 +170,13 @@ function App() {
       server: currentPointServes[0].player,
       serves: currentPointServes,
       winningTeam,
-      outcome: "Rally"
+      outcome
     }
 
     setPoints([...points, newPoint])
     setCurrentPointServes([])
+
+    setPendingWinningTeam(null)
 
     setSelectedPlayer("None")
     setSelectedHand("None")
@@ -351,6 +354,40 @@ function App() {
         }
       })
 
+      const playerTeam = getPlayerTeam(player)
+
+      const playerPointsServed = points.filter(
+        (point) => point.server === player
+      )
+
+      const playerServingWins = playerPointsServed.filter(
+        (point) => point.winningTeam === playerTeam
+      ).length
+
+      const firstServePoints = playerPointsServed.filter(
+        (point) => point.serves.length === 1
+      )
+
+      const firstServePointWins = firstServePoints.filter(
+        (point) => point.winningTeam === playerTeam
+      ).length
+
+      const secondServePoints = playerPointsServed.filter(
+        (point) => point.serves.length === 2
+      )
+
+      const secondServePointWins = secondServePoints.filter(
+        (point) => point.winningTeam === playerTeam
+      ).length
+
+      const acePoints = playerPointsServed.filter(
+        (point) => point.outcome === "Ace"
+      ).length
+
+      const doubleFaultPoints = playerPointsServed.filter(
+        (point) => point.outcome === "Double Fault"
+      ).length
+
       return {
         player,
         totalServes: playerServes.length,
@@ -363,7 +400,19 @@ function App() {
         secondServes: playerSecondServes.length,
         secondServeLegal: playerSecondServeLegal,
         serveBreakdown,
-        faultBreakdown
+        faultBreakdown,
+
+        pointsServed: playerPointsServed.length,
+        servingWins: playerServingWins,
+
+        firstServePoints: firstServePoints.length,
+        firstServePointWins,
+
+        secondServePoints: secondServePoints.length,
+        secondServePointWins,
+
+        acePoints,
+        doubleFaultPoints
       }
     })
     .filter((stats) => stats.totalServes > 0)
@@ -659,7 +708,7 @@ function App() {
                     : ""}
 
                   {serve.result &&
-                  serve.result !== "Fault"
+                    serve.result !== "Fault"
                     ? ` — ${serve.result}`
                     : ""}
                 </button>
@@ -667,24 +716,46 @@ function App() {
             ))}
           </ul>
 
-          {rallyStarted && (
+          {rallyStarted && !pendingWinningTeam && (
             <div>
               <h2>Who won the point?</h2>
 
+              <button onClick={() => setPendingWinningTeam("Team 1")}>
+                {team1.join(" / ")}
+              </button>
+
+              <button onClick={() => setPendingWinningTeam("Team 2")}>
+                {team2.join(" / ")}
+              </button>
+            </div>
+          )}
+
+          {pendingWinningTeam && (
+            <div>
+              <h2>How did the point end?</h2>
+
               <button
                 onClick={() =>
-                  finishPoint("Team 1")
+                  finishPoint(pendingWinningTeam, "Kill")
                 }
               >
-                {team1.join(" / ")}
+                Kill
               </button>
 
               <button
                 onClick={() =>
-                  finishPoint("Team 2")
+                  finishPoint(pendingWinningTeam, "Offensive Error")
                 }
               >
-                {team2.join(" / ")}
+                Offensive Error
+              </button>
+
+              <button
+                onClick={() =>
+                  finishPoint(pendingWinningTeam, "Other")
+                }
+              >
+                Other
               </button>
             </div>
           )}
@@ -779,8 +850,7 @@ function App() {
                 <p>Aces: {stats.aces}</p>
 
                 <p>
-                  Double Faults:{" "}
-                  {stats.doubleFaults}
+                  Double Faults: {stats.doubleFaults}
                 </p>
 
                 <p>
@@ -803,48 +873,43 @@ function App() {
 
                 {Object.entries(
                   stats.serveBreakdown
-                ).map(
-                  ([serveName, serveStats]) => (
-                    <div key={serveName}>
-                      <strong>
-                        {serveName}
-                      </strong>
+                ).map(([serveName, serveStats]) => (
+                  <div key={serveName}>
+                    <strong>{serveName}</strong>
 
-                      <p>
-                        Attempts:{" "}
-                        {serveStats.attempts}
-                      </p>
+                    <p>
+                      Attempts: {serveStats.attempts}
+                    </p>
 
-                      <p>
-                        Legal:{" "}
-                        {percentage(
-                          serveStats.legal,
-                          serveStats.attempts
-                        )}%
-                      </p>
+                    <p>
+                      Legal:{" "}
+                      {percentage(
+                        serveStats.legal,
+                        serveStats.attempts
+                      )}%
+                    </p>
 
-                      <p>
-                        Faults:{" "}
-                        {percentage(
-                          serveStats.faults,
-                          serveStats.attempts
-                        )}%
-                      </p>
+                    <p>
+                      Faults:{" "}
+                      {percentage(
+                        serveStats.faults,
+                        serveStats.attempts
+                      )}%
+                    </p>
 
-                      <p>
-                        Aces: {serveStats.aces}
-                      </p>
+                    <p>
+                      Aces: {serveStats.aces}
+                    </p>
 
-                      <p>
-                        Ace Rate:{" "}
-                        {percentage(
-                          serveStats.aces,
-                          serveStats.attempts
-                        )}%
-                      </p>
-                    </div>
-                  )
-                )}
+                    <p>
+                      Ace Rate:{" "}
+                      {percentage(
+                        serveStats.aces,
+                        serveStats.attempts
+                      )}%
+                    </p>
+                  </div>
+                ))}
 
                 {stats.faults > 0 && (
                   <div>
@@ -853,32 +918,73 @@ function App() {
                     {Object.entries(
                       stats.faultBreakdown
                     )
-                      .filter(
-                        ([, count]) => count > 0
-                      )
-                      .map(
-                        ([faultType, count]) => (
-                          <div key={faultType}>
-                            <strong>
-                              {faultType}
-                            </strong>
+                      .filter(([, count]) => count > 0)
+                      .map(([faultType, count]) => (
+                        <div key={faultType}>
+                          <strong>
+                            {faultType}
+                          </strong>
 
-                            <p>
-                              Count: {count}
-                            </p>
+                          <p>
+                            Count: {count}
+                          </p>
 
-                            <p>
-                              Share of Faults:{" "}
-                              {percentage(
-                                count,
-                                stats.faults
-                              )}%
-                            </p>
-                          </div>
-                        )
-                      )}
+                          <p>
+                            Share of Faults:{" "}
+                            {percentage(
+                              count,
+                              stats.faults
+                            )}%
+                          </p>
+                        </div>
+                      ))}
                   </div>
                 )}
+
+                <h4>Point Statistics</h4>
+
+                <p>
+                  Points Served: {stats.pointsServed}
+                </p>
+
+                <p>
+                  Points Won While Serving:{" "}
+                  {stats.servingWins}
+                </p>
+
+                <p>
+                  Serving Point Win %:{" "}
+                  {percentage(
+                    stats.servingWins,
+                    stats.pointsServed
+                  )}%
+                </p>
+
+                <p>
+                  First-Serve Point Win %:{" "}
+                  {percentage(
+                    stats.firstServePointWins,
+                    stats.firstServePoints
+                  )}%
+                </p>
+
+                <p>
+                  Second-Serve Point Win %:{" "}
+                  {percentage(
+                    stats.secondServePointWins,
+                    stats.secondServePoints
+                  )}%
+                </p>
+
+                <p>
+                  Points Won by Ace:{" "}
+                  {stats.acePoints}
+                </p>
+
+                <p>
+                  Points Lost by Double Fault:{" "}
+                  {stats.doubleFaultPoints}
+                </p>
               </div>
             ))}
           </div>
