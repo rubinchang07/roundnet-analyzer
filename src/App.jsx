@@ -13,6 +13,8 @@ function App() {
     "Player 4"
   ])
   const [selectedServeType, setSelectedServeType] = useState("Cut")
+  const [serveStatus, setServeStatus] = useState(null)
+  const [selectedFaultType, setSelectedFaultType] = useState(null)
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -24,17 +26,23 @@ function App() {
     }
   }
 
-  function markServe(result) {
+  function markServe(result, faultType = null, playedThrough = null) {
     const currentTime = videoRef.current.currentTime
 
     const newServe = {
       timestamp: currentTime,
       player: selectedPlayer,
       type: selectedServeType,
+      legality: serveStatus,
+      faultType,
+      playedThrough,
       result
     }
 
     setServes([...serves, newServe])
+
+    setServeStatus(null)
+    setSelectedFaultType(null)
   }
 
   function jumpToTimestamp(time) {
@@ -131,31 +139,82 @@ function App() {
           />
 
           <div>
-            <button onClick={() => markServe("Ace")}>
-              Ace
+            <button onClick={() => setServeStatus("Legal")}>
+              Legal
             </button>
 
-            <button onClick={() => markServe("Returned")}>
-              Returned
-            </button>
-
-            <button onClick={() => markServe("Fault")}>
+            <button onClick={() => setServeStatus("Fault")}>
               Fault
             </button>
           </div>
 
+          {serveStatus === "Legal" && (
+            <div>
+              <button onClick={() => markServe("Ace")}>
+                Ace
+              </button>
+
+              <button onClick={() => markServe("Returned")}>
+                Returned
+              </button>
+            </div>
+          )}
+
+          {serveStatus === "Fault" && (
+            <div>
+              <button onClick={() => setSelectedFaultType("Rim")}>
+                Rim
+              </button>
+
+              <button onClick={() => setSelectedFaultType("High")}>
+                High
+              </button>
+
+              <button onClick={() => setSelectedFaultType("Pocket")}>
+                Pocket
+              </button>
+            </div>
+          )}
+
+          {serveStatus === "Fault" && selectedFaultType && (
+            <div>
+              <p>Played through?</p>
+
+              <button
+                onClick={() =>
+                  markServe("Fault", selectedFaultType, true)
+                }
+              >
+                Yes
+              </button>
+
+              <button
+                onClick={() =>
+                  markServe("Fault", selectedFaultType, false)
+                }
+              >
+                No
+              </button>
+            </div>
+          )}
+
           <h2>Serves</h2>
 
           <ul>
-            <ul>
-              {serves.map((serve, index) => (
-                <li key={index}>
-                  <button onClick={() => jumpToTimestamp(serve.timestamp)}>
-                    #{index + 1} — {serve.player} — {serve.type} — {formatTime(serve.timestamp)} — {serve.result}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {serves.map((serve, index) => (
+              <li key={index}>
+                <button onClick={() => jumpToTimestamp(serve.timestamp)}>
+                  #{index + 1} — {serve.player} — {serve.type} —{" "}
+                  {formatTime(serve.timestamp)} — {serve.legality}
+                  {serve.faultType ? ` (${serve.faultType})` : ""}
+                  {serve.playedThrough === true ? " — Played Through" : ""}
+                  {serve.playedThrough === false ? " — Not Played" : ""}
+                  {serve.result && serve.result !== "Fault"
+                    ? ` — ${serve.result}`
+                    : ""}
+                </button>
+              </li>
+            ))}
           </ul>
         </div>
       )}
