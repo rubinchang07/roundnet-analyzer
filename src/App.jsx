@@ -1,4 +1,5 @@
 import { useRef, useState } from "react"
+import "./App.css"
 
 function App() {
   const videoRef = useRef(null)
@@ -6,6 +7,7 @@ function App() {
   const [videoURL, setVideoURL] = useState(null)
   const [serves, setServes] = useState([])
   const [selectedPlayer, setSelectedPlayer] = useState("None")
+
   const [players, setPlayers] = useState([
     "Player 1",
     "Player 2",
@@ -28,6 +30,7 @@ function App() {
 
   const [points, setPoints] = useState([])
   const [currentPointServes, setCurrentPointServes] = useState([])
+
   const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
   const [pendingOutcome, setPendingOutcome] = useState(null)
 
@@ -35,6 +38,20 @@ function App() {
     currentPointServes.length > 0
       ? currentPointServes[0].player
       : null
+
+  function getPlayerTeam(player) {
+    const playerIndex = players.indexOf(player)
+
+    if (teams[0].includes(playerIndex)) {
+      return "Team 1"
+    }
+
+    if (teams[1].includes(playerIndex)) {
+      return "Team 2"
+    }
+
+    return null
+  }
 
   const teamStats = ["Team 1", "Team 2"].map((teamName) => {
     const teamPoints = points.filter(
@@ -76,13 +93,10 @@ function App() {
     return {
       teamName,
       pointsWon,
-
       servingPoints: servingPoints.length,
       servingPointsWon,
-
       receivingPoints: receivingPoints.length,
       receivingPointsWon,
-
       aces: teamAces,
       doubleFaults: teamDoubleFaults
     }
@@ -99,27 +113,17 @@ function App() {
       setServes([])
       setPoints([])
       setCurrentPointServes([])
+
       setServeStatus(null)
       setSelectedFaultType(null)
+
       setPendingWinningTeam(null)
+      setPendingOutcome(null)
+
       setSelectedPlayer("None")
       setSelectedHand("None")
       setSelectedServeType("None")
     }
-  }
-
-  function getPlayerTeam(player) {
-    const playerIndex = players.indexOf(player)
-
-    if (teams[0].includes(playerIndex)) {
-      return "Team 1"
-    }
-
-    if (teams[1].includes(playerIndex)) {
-      return "Team 2"
-    }
-
-    return null
   }
 
   function markServe(result, faultType = null, playedThrough = null) {
@@ -163,8 +167,6 @@ function App() {
     setServeStatus(null)
     setSelectedFaultType(null)
 
-    // After a fault, keep the same server but
-    // reset hand and serve type for the next attempt.
     if (serveStatus === "Fault") {
       setSelectedHand("None")
       setSelectedServeType("None")
@@ -172,7 +174,7 @@ function App() {
 
     const servingTeam = getPlayerTeam(selectedPlayer)
 
-    // ACE: serving team automatically wins.
+    // Ace
     if (result === "Ace") {
       const newPoint = {
         id: crypto.randomUUID(),
@@ -189,6 +191,7 @@ function App() {
 
       setCurrentPointServes([])
       setPendingWinningTeam(null)
+      setPendingOutcome(null)
 
       setSelectedPlayer("None")
       setSelectedHand("None")
@@ -197,7 +200,7 @@ function App() {
       return
     }
 
-    // DOUBLE FAULT: receiving team automatically wins.
+    // Double fault
     const isDoubleFault =
       serveAttempt === 2 &&
       serveStatus === "Fault" &&
@@ -224,6 +227,7 @@ function App() {
 
       setCurrentPointServes([])
       setPendingWinningTeam(null)
+      setPendingOutcome(null)
 
       setSelectedPlayer("None")
       setSelectedHand("None")
@@ -251,11 +255,14 @@ function App() {
     ])
 
     setCurrentPointServes([])
+
     setPendingWinningTeam(null)
     setPendingOutcome(null)
+
     setSelectedPlayer("None")
     setSelectedHand("None")
     setSelectedServeType("None")
+
     setServeStatus(null)
     setSelectedFaultType(null)
   }
@@ -406,7 +413,6 @@ function App() {
           point.responsiblePlayer === player
       ).length
 
-      // Serve breakdown by hand + serve type
       const serveBreakdown = {}
 
       playerServes.forEach((serve) => {
@@ -436,7 +442,6 @@ function App() {
         }
       })
 
-      // Fault breakdown by fault type
       const faultBreakdown = {
         Rim: 0,
         High: 0,
@@ -454,7 +459,6 @@ function App() {
         }
       })
 
-      // Point statistics
       const playerTeam = getPlayerTeam(player)
 
       const playerPointsServed = points.filter(
@@ -501,9 +505,11 @@ function App() {
 
       return {
         player,
+
         totalServes: playerServes.length,
         legal,
         faults,
+
         aces: playerAces,
         doubleFaults: playerDoubleFaults,
 
@@ -540,750 +546,966 @@ function App() {
     )
 
   return (
-    <div>
-      <h1>Roundnet Analyzer</h1>
-
-      <p>
-        Upload a match to begin analyzing your game.
-      </p>
-
-      <input
-        type="file"
-        accept="video/*"
-        onChange={handleVideoUpload}
-      />
-
-      <div>
-        <h2>Players</h2>
-
-        {players.map((player, index) => (
-          <div key={index}>
-            <input
-              type="text"
-              value={player}
-              onChange={(event) =>
-                updatePlayerName(
-                  index,
-                  event.target.value
-                )
-              }
-            />
-          </div>
-        ))}
-
+    <div className="app-shell">
+      <header className="app-header">
         <div>
-          <h2>Teams</h2>
-
+          <h1>Roundnet Analyzer</h1>
           <p>
-            Team 1: {team1.join(" / ")}
-          </p>
-
-          <p>
-            Team 2: {team2.join(" / ")}
+            Upload match footage, tag serves, and review performance.
           </p>
         </div>
+      </header>
 
-        <h2>Select Server</h2>
+      <main className="app-main">
+        <section className="upload-card">
+          <label className="upload-label">
+            Match Video
+          </label>
 
-        {players.map((player, index) => (
-          <button
-            key={index}
-            onClick={() =>
-              setSelectedPlayer(player)
-            }
-            disabled={
-              currentPointServer !== null &&
-              currentPointServer !== player
-            }
-          >
-            {player}
-          </button>
-        ))}
-
-        <p>
-          Selected: {selectedPlayer}
-        </p>
-
-        <div>
-          <h2>Select Hand</h2>
-
-          <button
-            onClick={() =>
-              setSelectedHand("Left")
-            }
-          >
-            Left
-          </button>
-
-          <button
-            onClick={() =>
-              setSelectedHand("Right")
-            }
-          >
-            Right
-          </button>
-
-          <p>
-            Selected hand: {selectedHand}
-          </p>
-        </div>
-
-        <div>
-          <h2>Select Serve Type</h2>
-
-          <button
-            onClick={() =>
-              setSelectedServeType("Cut")
-            }
-          >
-            Cut
-          </button>
-
-          <button
-            onClick={() =>
-              setSelectedServeType("Reverse")
-            }
-          >
-            Reverse
-          </button>
-
-          <button
-            onClick={() =>
-              setSelectedServeType("Jam")
-            }
-          >
-            Jam
-          </button>
-
-          <button
-            onClick={() =>
-              setSelectedServeType("Drop")
-            }
-          >
-            Drop
-          </button>
-
-          <button
-            onClick={() =>
-              setSelectedServeType("Tap-on")
-            }
-          >
-            Tap-on
-          </button>
-
-          <p>
-            Selected serve type: {selectedServeType}
-          </p>
-        </div>
-      </div>
-
-      {videoURL && (
-        <div>
-          <video
-            ref={videoRef}
-            src={videoURL}
-            controls
-            width="700"
+          <input
+            type="file"
+            accept="video/*"
+            onChange={handleVideoUpload}
           />
+        </section>
 
-          <div>
-            <h2>Serve Legality</h2>
-
-            <button
-              onClick={() =>
-                setServeStatus("Legal")
-              }
-            >
-              Legal
-            </button>
-
-            <button
-              onClick={() =>
-                setServeStatus("Fault")
-              }
-            >
-              Fault
-            </button>
-          </div>
-
-          {serveStatus === "Legal" && (
-            <div>
-              <h3>Serve Result</h3>
-
-              <button
-                onClick={() =>
-                  markServe("Ace")
-                }
-              >
-                Ace
-              </button>
-
-              <button
-                onClick={() =>
-                  markServe("Returned")
-                }
-              >
-                Returned
-              </button>
-            </div>
-          )}
-
-          {serveStatus === "Fault" && (
-            <div>
-              <h3>Fault Type</h3>
-
-              <button
-                onClick={() =>
-                  setSelectedFaultType("Rim")
-                }
-              >
-                Rim
-              </button>
-
-              <button
-                onClick={() =>
-                  setSelectedFaultType("High")
-                }
-              >
-                High
-              </button>
-
-              <button
-                onClick={() =>
-                  setSelectedFaultType("Pocket")
-                }
-              >
-                Pocket
-              </button>
-
-              <button
-                onClick={() =>
-                  markServe(
-                    "Fault",
-                    "Missed Net",
-                    false
-                  )
-                }
-              >
-                Missed Net
-              </button>
-            </div>
-          )}
-
-          {serveStatus === "Fault" &&
-            selectedFaultType && (
-              <div>
-                <p>Played through?</p>
-
-                <button
-                  onClick={() =>
-                    markServe(
-                      "Fault",
-                      selectedFaultType,
-                      true
-                    )
-                  }
-                >
-                  Yes
-                </button>
-
-                <button
-                  onClick={() =>
-                    markServe(
-                      "Fault",
-                      selectedFaultType,
-                      false
-                    )
-                  }
-                >
-                  No
-                </button>
+        <section className="analyzer-grid">
+          <div className="video-panel">
+            {videoURL ? (
+              <video
+                ref={videoRef}
+                src={videoURL}
+                controls
+                className="match-video"
+              />
+            ) : (
+              <div className="video-placeholder">
+                Upload a match to begin analyzing.
               </div>
             )}
+          </div>
 
-          <h2>Serves</h2>
+          <aside className="controls-panel">
+            <div className="control-section">
+              <h2>Players</h2>
 
-          <ul>
-            {serves.map((serve, index) => (
-              <li key={serve.id}>
-                <button
-                  onClick={() =>
-                    jumpToTimestamp(
-                      serve.timestamp
-                    )
-                  }
-                >
-                  #{index + 1}
-                  {" — "}
-                  {serve.player}
-                  {" — "}
-                  Serve {serve.serveAttempt}
-                  {" — "}
-                  {serve.hand}
-                  {" — "}
-                  {serve.type}
-                  {" — "}
-                  {formatTime(serve.timestamp)}
-                  {" — "}
-                  {serve.legality}
+              <div className="player-inputs">
+                {players.map((player, index) => (
+                  <input
+                    key={index}
+                    type="text"
+                    value={player}
+                    onChange={(event) =>
+                      updatePlayerName(
+                        index,
+                        event.target.value
+                      )
+                    }
+                  />
+                ))}
+              </div>
 
-                  {serve.faultType
-                    ? ` (${serve.faultType})`
-                    : ""}
-
-                  {serve.playedThrough === true
-                    ? " — Played Through"
-                    : ""}
-
-                  {serve.playedThrough === false
-                    ? " — Not Played"
-                    : ""}
-
-                  {serve.result &&
-                    serve.result !== "Fault"
-                    ? ` — ${serve.result}`
-                    : ""}
-                </button>
-              </li>
-            ))}
-          </ul>
-
-          {rallyStarted &&
-            !pendingWinningTeam && (
-              <div>
-                <h2>Who won the point?</h2>
-
-                <button
-                  onClick={() =>
-                    setPendingWinningTeam(
-                      "Team 1"
-                    )
-                  }
-                >
+              <div className="team-summary">
+                <p>
+                  <strong>Team 1:</strong>{" "}
                   {team1.join(" / ")}
+                </p>
+
+                <p>
+                  <strong>Team 2:</strong>{" "}
+                  {team2.join(" / ")}
+                </p>
+              </div>
+            </div>
+
+            <div className="control-section">
+              <h2>Server</h2>
+
+              <div className="button-group">
+                {players.map((player, index) => (
+                  <button
+                    key={index}
+                    onClick={() =>
+                      setSelectedPlayer(player)
+                    }
+                    disabled={
+                      currentPointServer !== null &&
+                      currentPointServer !== player
+                    }
+                    className={
+                      selectedPlayer === player
+                        ? "selected-button"
+                        : ""
+                    }
+                  >
+                    {player}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="control-section">
+              <h2>Hand</h2>
+
+              <div className="button-group">
+                <button
+                  className={
+                    selectedHand === "Left"
+                      ? "selected-button"
+                      : ""
+                  }
+                  onClick={() =>
+                    setSelectedHand("Left")
+                  }
+                >
+                  Left
                 </button>
 
                 <button
+                  className={
+                    selectedHand === "Right"
+                      ? "selected-button"
+                      : ""
+                  }
                   onClick={() =>
-                    setPendingWinningTeam(
-                      "Team 2"
-                    )
+                    setSelectedHand("Right")
                   }
                 >
-                  {team2.join(" / ")}
+                  Right
                 </button>
+              </div>
+            </div>
+
+            <div className="control-section">
+              <h2>Serve Type</h2>
+
+              <div className="button-group">
+                {[
+                  "Cut",
+                  "Reverse",
+                  "Jam",
+                  "Drop",
+                  "Tap-on"
+                ].map((type) => (
+                  <button
+                    key={type}
+                    className={
+                      selectedServeType === type
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedServeType(type)
+                    }
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {videoURL && (
+              <div className="control-section">
+                <h2>Serve Legality</h2>
+
+                <div className="button-group">
+                  <button
+                    className={
+                      serveStatus === "Legal"
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setServeStatus("Legal")
+                    }
+                  >
+                    Legal
+                  </button>
+
+                  <button
+                    className={
+                      serveStatus === "Fault"
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setServeStatus("Fault")
+                    }
+                  >
+                    Fault
+                  </button>
+                </div>
               </div>
             )}
 
-          {pendingWinningTeam && !pendingOutcome && (
-            <div>
-              <h2>How did the point end?</h2>
+            {serveStatus === "Legal" && (
+              <div className="control-section">
+                <h2>Serve Result</h2>
 
-              <button
-                onClick={() =>
-                  setPendingOutcome("Kill")
-                }
-              >
-                Kill
-              </button>
-
-              <button
-                onClick={() =>
-                  setPendingOutcome("Offensive Error")
-                }
-              >
-                Offensive Error
-              </button>
-
-              <button
-                onClick={() =>
-                  finishPoint(
-                    pendingWinningTeam,
-                    "Other"
-                  )
-                }
-              >
-                Other
-              </button>
-            </div>
-          )}
-
-          {pendingOutcome === "Kill" && (
-            <div>
-              <h2>Who got the kill?</h2>
-
-              {players
-                .filter(
-                  (player) =>
-                    getPlayerTeam(player) === pendingWinningTeam
-                )
-                .map((player) => (
+                <div className="button-group">
                   <button
-                    key={player}
                     onClick={() =>
-                      finishPoint(
-                        pendingWinningTeam,
-                        "Kill",
-                        player
+                      markServe("Ace")
+                    }
+                  >
+                    Ace
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      markServe("Returned")
+                    }
+                  >
+                    Returned
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {serveStatus === "Fault" && (
+              <div className="control-section">
+                <h2>Fault Type</h2>
+
+                <div className="button-group">
+                  <button
+                    className={
+                      selectedFaultType === "Rim"
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedFaultType("Rim")
+                    }
+                  >
+                    Rim
+                  </button>
+
+                  <button
+                    className={
+                      selectedFaultType === "High"
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedFaultType("High")
+                    }
+                  >
+                    High
+                  </button>
+
+                  <button
+                    className={
+                      selectedFaultType === "Pocket"
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedFaultType("Pocket")
+                    }
+                  >
+                    Pocket
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      markServe(
+                        "Fault",
+                        "Missed Net",
+                        false
                       )
                     }
                   >
-                    {player}
+                    Missed Net
                   </button>
-                ))}
-            </div>
-          )}
+                </div>
+              </div>
+            )}
 
-          {pendingOutcome === "Offensive Error" && (
-            <div>
-              <h2>Who made the offensive error?</h2>
+            {serveStatus === "Fault" &&
+              selectedFaultType && (
+                <div className="control-section">
+                  <h2>Played Through?</h2>
 
-              {players
-                .filter(
-                  (player) =>
-                    getPlayerTeam(player) !== pendingWinningTeam
-                )
-                .map((player) => (
+                  <div className="button-group">
+                    <button
+                      onClick={() =>
+                        markServe(
+                          "Fault",
+                          selectedFaultType,
+                          true
+                        )
+                      }
+                    >
+                      Yes
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        markServe(
+                          "Fault",
+                          selectedFaultType,
+                          false
+                        )
+                      }
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            {rallyStarted &&
+              !pendingWinningTeam && (
+                <div className="control-section">
+                  <h2>Point Winner</h2>
+
+                  <div className="button-group">
+                    <button
+                      onClick={() =>
+                        setPendingWinningTeam(
+                          "Team 1"
+                        )
+                      }
+                    >
+                      {team1.join(" / ")}
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setPendingWinningTeam(
+                          "Team 2"
+                        )
+                      }
+                    >
+                      {team2.join(" / ")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            {pendingWinningTeam &&
+              !pendingOutcome && (
+                <div className="control-section">
+                  <h2>Point Outcome</h2>
+
+                  <div className="button-group">
+                    <button
+                      onClick={() =>
+                        setPendingOutcome("Kill")
+                      }
+                    >
+                      Kill
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setPendingOutcome(
+                          "Offensive Error"
+                        )
+                      }
+                    >
+                      Offensive Error
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        finishPoint(
+                          pendingWinningTeam,
+                          "Other"
+                        )
+                      }
+                    >
+                      Other
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            {pendingOutcome === "Kill" && (
+              <div className="control-section">
+                <h2>Who Got the Kill?</h2>
+
+                <div className="button-group">
+                  {players
+                    .filter(
+                      (player) =>
+                        getPlayerTeam(player) ===
+                        pendingWinningTeam
+                    )
+                    .map((player) => (
+                      <button
+                        key={player}
+                        onClick={() =>
+                          finishPoint(
+                            pendingWinningTeam,
+                            "Kill",
+                            player
+                          )
+                        }
+                      >
+                        {player}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {pendingOutcome ===
+              "Offensive Error" && (
+              <div className="control-section">
+                <h2>
+                  Who Made the Offensive Error?
+                </h2>
+
+                <div className="button-group">
+                  {players
+                    .filter(
+                      (player) =>
+                        getPlayerTeam(player) !==
+                        pendingWinningTeam
+                    )
+                    .map((player) => (
+                      <button
+                        key={player}
+                        onClick={() =>
+                          finishPoint(
+                            pendingWinningTeam,
+                            "Offensive Error",
+                            player
+                          )
+                        }
+                      >
+                        {player}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        </section>
+
+        <section className="dashboard-grid">
+          <div className="dashboard-card">
+            <h2>Serve History</h2>
+
+            {serves.length === 0 ? (
+              <p className="empty-state">
+                No serves recorded yet.
+              </p>
+            ) : (
+              <div className="history-list">
+                {serves.map((serve, index) => (
                   <button
-                    key={player}
+                    className="history-item"
+                    key={serve.id}
                     onClick={() =>
-                      finishPoint(
-                        pendingWinningTeam,
-                        "Offensive Error",
-                        player
+                      jumpToTimestamp(
+                        serve.timestamp
                       )
                     }
                   >
-                    {player}
+                    <strong>
+                      #{index + 1} · {serve.player}
+                    </strong>
+
+                    <span>
+                      Serve {serve.serveAttempt} ·{" "}
+                      {serve.hand} · {serve.type}
+                    </span>
+
+                    <span>
+                      {formatTime(serve.timestamp)} ·{" "}
+                      {serve.legality}
+
+                      {serve.faultType
+                        ? ` (${serve.faultType})`
+                        : ""}
+
+                      {serve.playedThrough === true
+                        ? " · Played Through"
+                        : ""}
+
+                      {serve.playedThrough === false
+                        ? " · Not Played"
+                        : ""}
+
+                      {serve.result &&
+                      serve.result !== "Fault"
+                        ? ` · ${serve.result}`
+                        : ""}
+                    </span>
                   </button>
                 ))}
-            </div>
-          )}
-
-          <h2>Points</h2>
-
-          <ul>
-            {points.map((point, index) => (
-              <li key={point.id}>
-                Point {index + 1}
-                {" — "}
-                Server: {point.server}
-                {" — "}
-                Winner: {point.winningTeam}
-                {" — "}
-                Serves: {point.serves.length}
-                {" — "}
-                {point.outcome}
-
-                {point.responsiblePlayer
-                  ? ` — ${point.responsiblePlayer}`
-                  : ""}
-              </li>
-            ))}
-          </ul>
-
-          <div>
-            <h2>Match Statistics</h2>
-
-            <p>
-              Total Serves: {totalServes}
-            </p>
-
-            <p>
-              Legal Serves:{" "}
-              {percentage(
-                legalServes,
-                totalServes
-              )}%
-            </p>
-
-            <p>
-              Faults:{" "}
-              {percentage(
-                faultServes,
-                totalServes
-              )}%
-            </p>
-
-            <p>
-              Aces: {aces}
-            </p>
-
-            <p>
-              Double Faults: {doubleFaults}
-            </p>
-
-            <p>
-              First Serve Legal:{" "}
-              {percentage(
-                firstServeLegal,
-                firstServes.length
-              )}%
-            </p>
-
-            <p>
-              Second Serve Legal:{" "}
-              {percentage(
-                secondServeLegal,
-                secondServes.length
-              )}%
-            </p>
+              </div>
+            )}
           </div>
 
-          <div>
+          <div className="dashboard-card">
+            <h2>Points</h2>
+
+            {points.length === 0 ? (
+              <p className="empty-state">
+                No completed points yet.
+              </p>
+            ) : (
+              <div className="point-list">
+                {points.map((point, index) => (
+                  <div
+                    className="point-item"
+                    key={point.id}
+                  >
+                    <strong>
+                      Point {index + 1}
+                    </strong>
+
+                    <span>
+                      Server: {point.server}
+                    </span>
+
+                    <span>
+                      Winner: {point.winningTeam}
+                    </span>
+
+                    <span>
+                      {point.outcome}
+
+                      {point.responsiblePlayer
+                        ? ` · ${point.responsiblePlayer}`
+                        : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="stats-section">
+          <div className="stats-header">
+            <h2>Match Statistics</h2>
+          </div>
+
+          <div className="stat-card-grid">
+            <div className="stat-card">
+              <span>Total Serves</span>
+              <strong>{totalServes}</strong>
+            </div>
+
+            <div className="stat-card">
+              <span>Legal Serves</span>
+              <strong>
+                {percentage(
+                  legalServes,
+                  totalServes
+                )}
+                %
+              </strong>
+            </div>
+
+            <div className="stat-card">
+              <span>Faults</span>
+              <strong>
+                {percentage(
+                  faultServes,
+                  totalServes
+                )}
+                %
+              </strong>
+            </div>
+
+            <div className="stat-card">
+              <span>Aces</span>
+              <strong>{aces}</strong>
+            </div>
+
+            <div className="stat-card">
+              <span>Double Faults</span>
+              <strong>{doubleFaults}</strong>
+            </div>
+
+            <div className="stat-card">
+              <span>1st Serve Legal</span>
+              <strong>
+                {percentage(
+                  firstServeLegal,
+                  firstServes.length
+                )}
+                %
+              </strong>
+            </div>
+
+            <div className="stat-card">
+              <span>2nd Serve Legal</span>
+              <strong>
+                {percentage(
+                  secondServeLegal,
+                  secondServes.length
+                )}
+                %
+              </strong>
+            </div>
+          </div>
+
+          <div className="stats-subsection">
             <h2>Team Statistics</h2>
 
-            {teamStats.map((stats) => (
-              <div key={stats.teamName}>
-                <h3>
-                  {stats.teamName === "Team 1"
-                    ? team1.join(" / ")
-                    : team2.join(" / ")}
-                </h3>
+            <div className="team-stat-grid">
+              {teamStats.map((stats) => (
+                <div
+                  className="team-stat-card"
+                  key={stats.teamName}
+                >
+                  <h3>
+                    {stats.teamName === "Team 1"
+                      ? team1.join(" / ")
+                      : team2.join(" / ")}
+                  </h3>
 
-                <p>
-                  Points Won: {stats.pointsWon}
-                </p>
+                  <div className="stat-row">
+                    <span>Points Won</span>
+                    <strong>
+                      {stats.pointsWon}
+                    </strong>
+                  </div>
 
-                <p>
-                  Serving Points: {stats.servingPoints}
-                </p>
+                  <div className="stat-row">
+                    <span>Serving Points</span>
+                    <strong>
+                      {stats.servingPoints}
+                    </strong>
+                  </div>
 
-                <p>
-                  Serving Points Won: {stats.servingPointsWon}
-                </p>
+                  <div className="stat-row">
+                    <span>Serving Points Won</span>
+                    <strong>
+                      {stats.servingPointsWon}
+                    </strong>
+                  </div>
 
-                <p>
-                  Hold %:{" "}
-                  {percentage(
-                    stats.servingPointsWon,
-                    stats.servingPoints
-                  )}%
-                </p>
+                  <div className="stat-row">
+                    <span>Hold %</span>
+                    <strong>
+                      {percentage(
+                        stats.servingPointsWon,
+                        stats.servingPoints
+                      )}
+                      %
+                    </strong>
+                  </div>
 
-                <p>
-                  Receiving Points: {stats.receivingPoints}
-                </p>
+                  <div className="stat-row">
+                    <span>Receiving Points</span>
+                    <strong>
+                      {stats.receivingPoints}
+                    </strong>
+                  </div>
 
-                <p>
-                  Receiving Points Won: {stats.receivingPointsWon}
-                </p>
+                  <div className="stat-row">
+                    <span>
+                      Receiving Points Won
+                    </span>
+                    <strong>
+                      {stats.receivingPointsWon}
+                    </strong>
+                  </div>
 
-                <p>
-                  Break %:{" "}
-                  {percentage(
-                    stats.receivingPointsWon,
-                    stats.receivingPoints
-                  )}%
-                </p>
+                  <div className="stat-row">
+                    <span>Break %</span>
+                    <strong>
+                      {percentage(
+                        stats.receivingPointsWon,
+                        stats.receivingPoints
+                      )}
+                      %
+                    </strong>
+                  </div>
 
-                <p>
-                  Aces: {stats.aces}
-                </p>
+                  <div className="stat-row">
+                    <span>Aces</span>
+                    <strong>
+                      {stats.aces}
+                    </strong>
+                  </div>
 
-                <p>
-                  Double Faults: {stats.doubleFaults}
-                </p>
-              </div>
-            ))}
+                  <div className="stat-row">
+                    <span>Double Faults</span>
+                    <strong>
+                      {stats.doubleFaults}
+                    </strong>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div>
+          <div className="stats-subsection">
             <h2>Player Statistics</h2>
 
-            {playerStats.map((stats) => (
-              <div key={stats.player}>
-                <h3>{stats.player}</h3>
+            {playerStats.length === 0 ? (
+              <p className="empty-state">
+                Player statistics will appear
+                after events are recorded.
+              </p>
+            ) : (
+              <div className="player-stat-grid">
+                {playerStats.map((stats) => (
+                  <div
+                    className="player-stat-card"
+                    key={stats.player}
+                  >
+                    <h3>{stats.player}</h3>
 
-                <p>
-                  Total Serves:{" "}
-                  {stats.totalServes}
-                </p>
-
-                <p>
-                  Legal Serves:{" "}
-                  {percentage(
-                    stats.legal,
-                    stats.totalServes
-                  )}%
-                </p>
-
-                <p>
-                  Faults:{" "}
-                  {percentage(
-                    stats.faults,
-                    stats.totalServes
-                  )}%
-                </p>
-
-                <p>
-                  Aces: {stats.aces}
-                </p>
-
-                <p>
-                  Double Faults:{" "}
-                  {stats.doubleFaults}
-                </p>
-
-                <p>
-                  First Serve Legal:{" "}
-                  {percentage(
-                    stats.firstServeLegal,
-                    stats.firstServes
-                  )}%
-                </p>
-
-                <p>
-                  Second Serve Legal:{" "}
-                  {percentage(
-                    stats.secondServeLegal,
-                    stats.secondServes
-                  )}%
-                </p>
-
-                <h4>Serve Breakdown</h4>
-
-                {Object.entries(
-                  stats.serveBreakdown
-                ).map(
-                  ([serveName, serveStats]) => (
-                    <div key={serveName}>
+                    <div className="stat-row">
+                      <span>Total Serves</span>
                       <strong>
-                        {serveName}
+                        {stats.totalServes}
                       </strong>
-
-                      <p>
-                        Attempts:{" "}
-                        {serveStats.attempts}
-                      </p>
-
-                      <p>
-                        Legal:{" "}
-                        {percentage(
-                          serveStats.legal,
-                          serveStats.attempts
-                        )}%
-                      </p>
-
-                      <p>
-                        Faults:{" "}
-                        {percentage(
-                          serveStats.faults,
-                          serveStats.attempts
-                        )}%
-                      </p>
-
-                      <p>
-                        Aces:{" "}
-                        {serveStats.aces}
-                      </p>
-
-                      <p>
-                        Ace Rate:{" "}
-                        {percentage(
-                          serveStats.aces,
-                          serveStats.attempts
-                        )}%
-                      </p>
                     </div>
-                  )
-                )}
 
-                {stats.faults > 0 && (
-                  <div>
-                    <h4>Fault Breakdown</h4>
+                    <div className="stat-row">
+                      <span>Legal Serves</span>
+                      <strong>
+                        {percentage(
+                          stats.legal,
+                          stats.totalServes
+                        )}
+                        %
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>Faults</span>
+                      <strong>
+                        {percentage(
+                          stats.faults,
+                          stats.totalServes
+                        )}
+                        %
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>Aces</span>
+                      <strong>
+                        {stats.aces}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>Double Faults</span>
+                      <strong>
+                        {stats.doubleFaults}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>1st Serve Legal</span>
+                      <strong>
+                        {percentage(
+                          stats.firstServeLegal,
+                          stats.firstServes
+                        )}
+                        %
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>2nd Serve Legal</span>
+                      <strong>
+                        {percentage(
+                          stats.secondServeLegal,
+                          stats.secondServes
+                        )}
+                        %
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>Kills</span>
+                      <strong>
+                        {stats.kills}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>
+                        Offensive Errors
+                      </span>
+                      <strong>
+                        {stats.offensiveErrors}
+                      </strong>
+                    </div>
+
+                    <div className="stat-divider" />
+
+                    <h4>Point Statistics</h4>
+
+                    <div className="stat-row">
+                      <span>Points Served</span>
+                      <strong>
+                        {stats.pointsServed}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>
+                        Points Won Serving
+                      </span>
+                      <strong>
+                        {stats.servingWins}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>
+                        Serving Point Win %
+                      </span>
+                      <strong>
+                        {percentage(
+                          stats.servingWins,
+                          stats.pointsServed
+                        )}
+                        %
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>
+                        1st-Serve Point Win %
+                      </span>
+                      <strong>
+                        {percentage(
+                          stats.firstServePointWins,
+                          stats.firstServePoints
+                        )}
+                        %
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>
+                        2nd-Serve Point Win %
+                      </span>
+                      <strong>
+                        {percentage(
+                          stats.secondServePointWins,
+                          stats.secondServePoints
+                        )}
+                        %
+                      </strong>
+                    </div>
+
+                    <div className="stat-divider" />
+
+                    <h4>Serve Breakdown</h4>
 
                     {Object.entries(
-                      stats.faultBreakdown
-                    )
-                      .filter(
-                        ([, count]) =>
-                          count > 0
+                      stats.serveBreakdown
+                    ).map(
+                      ([
+                        serveName,
+                        serveStats
+                      ]) => (
+                        <div
+                          className="breakdown-card"
+                          key={serveName}
+                        >
+                          <strong>
+                            {serveName}
+                          </strong>
+
+                          <span>
+                            Attempts:{" "}
+                            {serveStats.attempts}
+                          </span>
+
+                          <span>
+                            Legal:{" "}
+                            {percentage(
+                              serveStats.legal,
+                              serveStats.attempts
+                            )}
+                            %
+                          </span>
+
+                          <span>
+                            Faults:{" "}
+                            {percentage(
+                              serveStats.faults,
+                              serveStats.attempts
+                            )}
+                            %
+                          </span>
+
+                          <span>
+                            Aces:{" "}
+                            {serveStats.aces}
+                          </span>
+
+                          <span>
+                            Ace Rate:{" "}
+                            {percentage(
+                              serveStats.aces,
+                              serveStats.attempts
+                            )}
+                            %
+                          </span>
+                        </div>
                       )
-                      .map(
-                        ([faultType, count]) => (
-                          <div key={faultType}>
-                            <strong>
-                              {faultType}
-                            </strong>
+                    )}
 
-                            <p>
-                              Count: {count}
-                            </p>
+                    {stats.faults > 0 && (
+                      <>
+                        <div className="stat-divider" />
 
-                            <p>
-                              Share of Faults:{" "}
-                              {percentage(
-                                count,
-                                stats.faults
-                              )}%
-                            </p>
-                          </div>
+                        <h4>
+                          Fault Breakdown
+                        </h4>
+
+                        {Object.entries(
+                          stats.faultBreakdown
                         )
-                      )}
+                          .filter(
+                            ([, count]) =>
+                              count > 0
+                          )
+                          .map(
+                            ([
+                              faultType,
+                              count
+                            ]) => (
+                              <div
+                                className="breakdown-card"
+                                key={faultType}
+                              >
+                                <strong>
+                                  {faultType}
+                                </strong>
+
+                                <span>
+                                  Count: {count}
+                                </span>
+
+                                <span>
+                                  Share:{" "}
+                                  {percentage(
+                                    count,
+                                    stats.faults
+                                  )}
+                                  %
+                                </span>
+                              </div>
+                            )
+                          )}
+                      </>
+                    )}
                   </div>
-                )}
-
-                <h4>Point Statistics</h4>
-
-                <p>
-                  Points Served:{" "}
-                  {stats.pointsServed}
-                </p>
-
-                <p>
-                  Points Won While Serving:{" "}
-                  {stats.servingWins}
-                </p>
-
-                <p>
-                  Serving Point Win %:{" "}
-                  {percentage(
-                    stats.servingWins,
-                    stats.pointsServed
-                  )}%
-                </p>
-
-                <p>
-                  First-Serve Point Win %:{" "}
-                  {percentage(
-                    stats.firstServePointWins,
-                    stats.firstServePoints
-                  )}%
-                </p>
-
-                <p>
-                  Second-Serve Point Win %:{" "}
-                  {percentage(
-                    stats.secondServePointWins,
-                    stats.secondServePoints
-                  )}%
-                </p>
-
-                <p>
-                  Points Won by Ace:{" "}
-                  {stats.acePoints}
-                </p>
-
-                <p>
-                  Points Lost by Double Fault:{" "}
-                  {stats.doubleFaultPoints}
-                </p>
-
-                <h4>Offensive Statistics</h4>
-
-                <p>
-                  Kills: {stats.kills}
-                </p>
-
-                <p>
-                  Offensive Errors: {stats.offensiveErrors}
-                </p>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      )}
+        </section>
+      </main>
     </div>
   )
 }
