@@ -12,10 +12,10 @@ function App() {
     "Player 3",
     "Player 4"
   ])
-  const [teams, setTeams] = useState([
+  const teams = [
     [0, 1],
     [2, 3]
-  ])
+  ]
   const team1 = teams[0].map((index) => players[index])
   const team2 = teams[1].map((index) => players[index])
   const [selectedServeType, setSelectedServeType] = useState("None")
@@ -28,7 +28,7 @@ function App() {
     currentPointServes.length > 0
       ? currentPointServes[0].player
       : null
-  const [selectedHand, setSelectedHand] = useState("Right")
+  const [selectedHand, setSelectedHand] = useState("None")
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -46,25 +46,82 @@ function App() {
     }
   }
 
+  function getPlayerTeam(player) {
+    const playerIndex = players.indexOf(player)
+
+    if (teams[0].includes(playerIndex)) {
+      return "Team 1"
+    }
+
+    if (teams[1].includes(playerIndex)) {
+      return "Team 2"
+    }
+
+    return null
+  }
+
   function markServe(result, faultType = null, playedThrough = null) {
     const currentTime = videoRef.current.currentTime
+    const serveAttempt = currentPointServes.length + 1
 
     const newServe = {
       timestamp: currentTime,
       player: selectedPlayer,
       hand: selectedHand,
       type: selectedServeType,
+      serveAttempt,
       legality: serveStatus,
       faultType,
       playedThrough,
       result
     }
 
+    const updatedPointServes = [...currentPointServes, newServe]
+
     setServes([...serves, newServe])
-    setCurrentPointServes([...currentPointServes, newServe])
+    setCurrentPointServes(updatedPointServes)
 
     setServeStatus(null)
     setSelectedFaultType(null)
+
+    const servingTeam = getPlayerTeam(selectedPlayer)
+
+    // ACE: serving team automatically wins
+    if (result === "Ace") {
+      const newPoint = {
+        server: selectedPlayer,
+        serves: updatedPointServes,
+        winningTeam: servingTeam,
+        outcome: "Ace"
+      }
+
+      setPoints([...points, newPoint])
+      setCurrentPointServes([])
+      return
+    }
+
+    // DOUBLE FAULT: receiving team automatically wins
+    const isDoubleFault =
+      serveAttempt === 2 &&
+      serveStatus === "Fault" &&
+      playedThrough === false
+
+    if (isDoubleFault) {
+      const receivingTeam =
+        servingTeam === "Team 1"
+          ? "Team 2"
+          : "Team 1"
+
+      const newPoint = {
+        server: selectedPlayer,
+        serves: updatedPointServes,
+        winningTeam: receivingTeam,
+        outcome: "Double Fault"
+      }
+
+      setPoints([...points, newPoint])
+      setCurrentPointServes([])
+    }
   }
 
   function finishPoint(winningTeam) {
@@ -116,7 +173,10 @@ function App() {
   const rallyStarted =
     latestServe &&
     (
-      latestServe.legality === "Legal" ||
+      (
+        latestServe.legality === "Legal" &&
+        latestServe.result === "Returned"
+      ) ||
       latestServe.playedThrough === true
     )
 
@@ -238,6 +298,14 @@ function App() {
             Drop
           </button>
 
+          <button
+            onClick={() =>
+              setSelectedServeType("Tap-on")
+            }
+          >
+            Tap-on
+          </button>
+
           <p>
             Selected serve type: {selectedServeType}
           </p>
@@ -325,7 +393,7 @@ function App() {
 
               <button
                 onClick={() =>
-                  setSelectedFaultType("Missed Net")
+                  markServe("Fault", "Missed Net", false)
                 }
               >
                 Missed Net
@@ -376,11 +444,9 @@ function App() {
                     )
                   }
                 >
-                  #{index + 1} — {serve.player} —{" "}
-                  {serve.hand} —{" "}
-                  {serve.type} —{" "}
-                  {formatTime(serve.timestamp)} —{" "}
-                  {serve.legality}
+                  #{index + 1} — {serve.player} — Serve {serve.serveAttempt} —{" "}
+                  {serve.hand} — {serve.type} —{" "}
+                  {formatTime(serve.timestamp)} — {serve.legality}
 
                   {serve.faultType
                     ? ` (${serve.faultType})`
@@ -422,7 +488,9 @@ function App() {
           <ul>
             {points.map((point, index) => (
               <li key={index}>
-                Point {index + 1} — Server: {point.server} — Winner: {point.winningTeam} — Serves: {point.serves.length}
+                Point {index + 1} — Server: {point.server} — Winner:{" "}
+                {point.winningTeam} — Serves: {point.serves.length}
+                {point.outcome ? ` — ${point.outcome}` : ""}
               </li>
             ))}
           </ul>
