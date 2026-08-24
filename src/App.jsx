@@ -30,7 +30,6 @@ function App() {
   const [currentPointServes, setCurrentPointServes] = useState([])
   const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
   const [pendingOutcome, setPendingOutcome] = useState(null)
-  const [responsiblePlayer, setResponsiblePlayer] = useState(null)
 
   const currentPointServer =
     currentPointServes.length > 0
@@ -202,8 +201,6 @@ function App() {
     setCurrentPointServes([])
     setPendingWinningTeam(null)
     setPendingOutcome(null)
-    setResponsiblePlayer(null)
-
     setSelectedPlayer("None")
     setSelectedHand("None")
     setSelectedServeType("None")
@@ -345,6 +342,18 @@ function App() {
           point.outcome === "Double Fault"
       ).length
 
+      const playerKills = points.filter(
+        (point) =>
+          point.outcome === "Kill" &&
+          point.responsiblePlayer === player
+      ).length
+
+      const playerOffensiveErrors = points.filter(
+        (point) =>
+          point.outcome === "Offensive Error" &&
+          point.responsiblePlayer === player
+      ).length
+
       // Serve breakdown by hand + serve type
       const serveBreakdown = {}
 
@@ -465,10 +474,18 @@ function App() {
         secondServePointWins,
 
         acePoints,
-        doubleFaultPoints
+        doubleFaultPoints,
+
+        kills: playerKills,
+        offensiveErrors: playerOffensiveErrors
       }
     })
-    .filter((stats) => stats.totalServes > 0)
+    .filter(
+      (stats) =>
+        stats.totalServes > 0 ||
+        stats.kills > 0 ||
+        stats.offensiveErrors > 0
+    )
 
   return (
     <div>
@@ -1141,6 +1158,16 @@ function App() {
                 <p>
                   Points Lost by Double Fault:{" "}
                   {stats.doubleFaultPoints}
+                </p>
+
+                <h4>Offensive Statistics</h4>
+
+                <p>
+                  Kills: {stats.kills}
+                </p>
+
+                <p>
+                  Offensive Errors: {stats.offensiveErrors}
                 </p>
               </div>
             ))}
