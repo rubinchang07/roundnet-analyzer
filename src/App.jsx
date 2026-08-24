@@ -43,6 +43,9 @@ function App() {
       setCurrentPointServes([])
       setServeStatus(null)
       setSelectedFaultType(null)
+      setSelectedPlayer("None")
+      setSelectedHand("None")
+      setSelectedServeType("None")
     }
   }
 
@@ -61,10 +64,20 @@ function App() {
   }
 
   function markServe(result, faultType = null, playedThrough = null) {
+    if (
+      selectedPlayer === "None" ||
+      selectedHand === "None" ||
+      selectedServeType === "None"
+    ) {
+      alert("Select a server, hand, and serve type first.")
+      return
+    }
+
     const currentTime = videoRef.current.currentTime
     const serveAttempt = currentPointServes.length + 1
 
     const newServe = {
+      id: crypto.randomUUID(),
       timestamp: currentTime,
       player: selectedPlayer,
       hand: selectedHand,
@@ -89,6 +102,7 @@ function App() {
     // ACE: serving team automatically wins
     if (result === "Ace") {
       const newPoint = {
+        id: crypto.randomUUID(),
         server: selectedPlayer,
         serves: updatedPointServes,
         winningTeam: servingTeam,
@@ -113,6 +127,7 @@ function App() {
           : "Team 1"
 
       const newPoint = {
+        id: crypto.randomUUID(),
         server: selectedPlayer,
         serves: updatedPointServes,
         winningTeam: receivingTeam,
@@ -130,9 +145,11 @@ function App() {
     }
 
     const newPoint = {
+      id: crypto.randomUUID(),
       server: currentPointServes[0].player,
       serves: currentPointServes,
-      winningTeam: winningTeam
+      winningTeam,
+      outcome: "Rally"
     }
 
     setPoints([...points, newPoint])
@@ -436,7 +453,7 @@ function App() {
 
           <ul>
             {serves.map((serve, index) => (
-              <li key={index}>
+              <li key={serve.id}>
                 <button
                   onClick={() =>
                     jumpToTimestamp(
@@ -487,7 +504,7 @@ function App() {
 
           <ul>
             {points.map((point, index) => (
-              <li key={index}>
+              <li key={point.id}>
                 Point {index + 1} — Server: {point.server} — Winner:{" "}
                 {point.winningTeam} — Serves: {point.serves.length}
                 {point.outcome ? ` — ${point.outcome}` : ""}
