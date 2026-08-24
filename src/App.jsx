@@ -12,17 +12,26 @@ function App() {
     "Player 3",
     "Player 4"
   ])
-  const [selectedServeType, setSelectedServeType] = useState("Cut")
+  const [selectedServeType, setSelectedServeType] = useState("None")
   const [serveStatus, setServeStatus] = useState(null)
   const [selectedFaultType, setSelectedFaultType] = useState(null)
+
+  const [points, setPoints] = useState([])
+  const [currentPointServes, setCurrentPointServes] = useState([])
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
 
     if (file) {
       const url = URL.createObjectURL(file)
+
       setVideoURL(url)
+
       setServes([])
+      setPoints([])
+      setCurrentPointServes([])
+      setServeStatus(null)
+      setSelectedFaultType(null)
     }
   }
 
@@ -40,9 +49,25 @@ function App() {
     }
 
     setServes([...serves, newServe])
+    setCurrentPointServes([...currentPointServes, newServe])
 
     setServeStatus(null)
     setSelectedFaultType(null)
+  }
+
+  function finishPoint(winner) {
+    if (currentPointServes.length === 0) {
+      return
+    }
+
+    const newPoint = {
+      server: currentPointServes[0].player,
+      serves: currentPointServes,
+      pointWinner: winner
+    }
+
+    setPoints([...points, newPoint])
+    setCurrentPointServes([])
   }
 
   function jumpToTimestamp(time) {
@@ -54,11 +79,14 @@ function App() {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = Math.floor(seconds % 60)
 
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
+    return `${minutes}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`
   }
 
   function updatePlayerName(index, newName) {
     const updatedPlayers = [...players]
+
     updatedPlayers[index] = newName
     setPlayers(updatedPlayers)
 
@@ -67,10 +95,26 @@ function App() {
     }
   }
 
+  // Get the most recently recorded serve in the current point
+  const latestServe =
+    currentPointServes[currentPointServes.length - 1]
+
+  // A rally exists if the most recent serve was legal
+  // or if a fault was played through
+  const rallyStarted =
+    latestServe &&
+    (
+      latestServe.legality === "Legal" ||
+      latestServe.playedThrough === true
+    )
+
   return (
     <div>
       <h1>Roundnet Analyzer</h1>
-      <p>Upload a match to begin analyzing your game.</p>
+
+      <p>
+        Upload a match to begin analyzing your game.
+      </p>
 
       <input
         type="file"
@@ -87,7 +131,10 @@ function App() {
               type="text"
               value={player}
               onChange={(event) =>
-                updatePlayerName(index, event.target.value)
+                updatePlayerName(
+                  index,
+                  event.target.value
+                )
               }
             />
           </div>
@@ -98,34 +145,56 @@ function App() {
         {players.map((player, index) => (
           <button
             key={index}
-            onClick={() => setSelectedPlayer(player)}
+            onClick={() =>
+              setSelectedPlayer(player)
+            }
           >
             {player}
           </button>
         ))}
 
-        <p>Selected: {selectedPlayer}</p>
+        <p>
+          Selected: {selectedPlayer}
+        </p>
 
         <div>
           <h2>Select Serve Type</h2>
 
-          <button onClick={() => setSelectedServeType("Cut")}>
+          <button
+            onClick={() =>
+              setSelectedServeType("Cut")
+            }
+          >
             Cut
           </button>
 
-          <button onClick={() => setSelectedServeType("Reverse")}>
+          <button
+            onClick={() =>
+              setSelectedServeType("Reverse")
+            }
+          >
             Reverse
           </button>
 
-          <button onClick={() => setSelectedServeType("Jam")}>
+          <button
+            onClick={() =>
+              setSelectedServeType("Jam")
+            }
+          >
             Jam
           </button>
 
-          <button onClick={() => setSelectedServeType("Drop")}>
+          <button
+            onClick={() =>
+              setSelectedServeType("Drop")
+            }
+          >
             Drop
           </button>
 
-          <p>Selected serve type: {selectedServeType}</p>
+          <p>
+            Selected serve type: {selectedServeType}
+          </p>
         </div>
       </div>
 
@@ -139,22 +208,42 @@ function App() {
           />
 
           <div>
-            <button onClick={() => setServeStatus("Legal")}>
+            <h2>Serve Legality</h2>
+
+            <button
+              onClick={() =>
+                setServeStatus("Legal")
+              }
+            >
               Legal
             </button>
 
-            <button onClick={() => setServeStatus("Fault")}>
+            <button
+              onClick={() =>
+                setServeStatus("Fault")
+              }
+            >
               Fault
             </button>
           </div>
 
           {serveStatus === "Legal" && (
             <div>
-              <button onClick={() => markServe("Ace")}>
+              <h3>Serve Result</h3>
+
+              <button
+                onClick={() =>
+                  markServe("Ace")
+                }
+              >
                 Ace
               </button>
 
-              <button onClick={() => markServe("Returned")}>
+              <button
+                onClick={() =>
+                  markServe("Returned")
+                }
+              >
                 Returned
               </button>
             </div>
@@ -162,57 +251,129 @@ function App() {
 
           {serveStatus === "Fault" && (
             <div>
-              <button onClick={() => setSelectedFaultType("Rim")}>
+              <h3>Fault Type</h3>
+
+              <button
+                onClick={() =>
+                  setSelectedFaultType("Rim")
+                }
+              >
                 Rim
               </button>
 
-              <button onClick={() => setSelectedFaultType("High")}>
+              <button
+                onClick={() =>
+                  setSelectedFaultType("High")
+                }
+              >
                 High
               </button>
 
-              <button onClick={() => setSelectedFaultType("Pocket")}>
+              <button
+                onClick={() =>
+                  setSelectedFaultType("Pocket")
+                }
+              >
                 Pocket
               </button>
             </div>
           )}
 
-          {serveStatus === "Fault" && selectedFaultType && (
-            <div>
-              <p>Played through?</p>
+          {serveStatus === "Fault" &&
+            selectedFaultType && (
+              <div>
+                <p>Played through?</p>
 
-              <button
-                onClick={() =>
-                  markServe("Fault", selectedFaultType, true)
-                }
-              >
-                Yes
-              </button>
+                <button
+                  onClick={() =>
+                    markServe(
+                      "Fault",
+                      selectedFaultType,
+                      true
+                    )
+                  }
+                >
+                  Yes
+                </button>
 
-              <button
-                onClick={() =>
-                  markServe("Fault", selectedFaultType, false)
-                }
-              >
-                No
-              </button>
-            </div>
-          )}
+                <button
+                  onClick={() =>
+                    markServe(
+                      "Fault",
+                      selectedFaultType,
+                      false
+                    )
+                  }
+                >
+                  No
+                </button>
+              </div>
+            )}
 
           <h2>Serves</h2>
 
           <ul>
             {serves.map((serve, index) => (
               <li key={index}>
-                <button onClick={() => jumpToTimestamp(serve.timestamp)}>
-                  #{index + 1} — {serve.player} — {serve.type} —{" "}
-                  {formatTime(serve.timestamp)} — {serve.legality}
-                  {serve.faultType ? ` (${serve.faultType})` : ""}
-                  {serve.playedThrough === true ? " — Played Through" : ""}
-                  {serve.playedThrough === false ? " — Not Played" : ""}
-                  {serve.result && serve.result !== "Fault"
+                <button
+                  onClick={() =>
+                    jumpToTimestamp(
+                      serve.timestamp
+                    )
+                  }
+                >
+                  #{index + 1} — {serve.player} —{" "}
+                  {serve.type} —{" "}
+                  {formatTime(serve.timestamp)} —{" "}
+                  {serve.legality}
+
+                  {serve.faultType
+                    ? ` (${serve.faultType})`
+                    : ""}
+
+                  {serve.playedThrough === true
+                    ? " — Played Through"
+                    : ""}
+
+                  {serve.playedThrough === false
+                    ? " — Not Played"
+                    : ""}
+
+                  {serve.result &&
+                  serve.result !== "Fault"
                     ? ` — ${serve.result}`
                     : ""}
                 </button>
+              </li>
+            ))}
+          </ul>
+
+          {rallyStarted && (
+            <div>
+              <h2>Who won the point?</h2>
+
+              {players.map((player, index) => (
+                <button
+                  key={index}
+                  onClick={() =>
+                    finishPoint(player)
+                  }
+                >
+                  {player}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <h2>Points</h2>
+
+          <ul>
+            {points.map((point, index) => (
+              <li key={index}>
+                Point {index + 1} — Server:{" "}
+                {point.server} — Winner:{" "}
+                {point.pointWinner} — Serves:{" "}
+                {point.serves.length}
               </li>
             ))}
           </ul>
