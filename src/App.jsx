@@ -111,6 +111,15 @@ function App() {
 
       setPoints([...points, newPoint])
       setCurrentPointServes([])
+
+      setPoints([...points, newPoint])
+      setCurrentPointServes([])
+
+      setSelectedPlayer("None")
+      setSelectedHand("None")
+      setSelectedServeType("None")
+
+      return
       return
     }
 
@@ -136,6 +145,10 @@ function App() {
 
       setPoints([...points, newPoint])
       setCurrentPointServes([])
+
+      setSelectedPlayer("None")
+      setSelectedHand("None")
+      setSelectedServeType("None")
     }
   }
 
@@ -154,6 +167,10 @@ function App() {
 
     setPoints([...points, newPoint])
     setCurrentPointServes([])
+
+    setSelectedPlayer("None")
+    setSelectedHand("None")
+    setSelectedServeType("None")
   }
 
   function jumpToTimestamp(time) {
@@ -197,6 +214,47 @@ function App() {
       latestServe.playedThrough === true
     )
 
+  const totalServes = serves.length
+
+  const legalServes = serves.filter(
+    (serve) => serve.legality === "Legal"
+  ).length
+
+  const faultServes = serves.filter(
+    (serve) => serve.legality === "Fault"
+  ).length
+
+  const aces = serves.filter(
+    (serve) => serve.result === "Ace"
+  ).length
+
+  const doubleFaults = points.filter(
+    (point) => point.outcome === "Double Fault"
+  ).length
+
+  const firstServes = serves.filter(
+    (serve) => serve.serveAttempt === 1
+  )
+
+  const firstServeLegal = firstServes.filter(
+    (serve) => serve.legality === "Legal"
+  ).length
+
+  const secondServes = serves.filter(
+    (serve) => serve.serveAttempt === 2
+  )
+
+  const secondServeLegal = secondServes.filter(
+    (serve) => serve.legality === "Legal"
+  ).length
+
+  function percentage(part, total) {
+    if (total === 0) {
+      return "0.0"
+    }
+
+    return ((part / total) * 100).toFixed(1)
+  }
   return (
     <div>
       <h1>Roundnet Analyzer</h1>
@@ -511,6 +569,40 @@ function App() {
               </li>
             ))}
           </ul>
+
+          <div>
+            <h2>Match Statistics</h2>
+
+            <p>
+              Total Serves: {totalServes}
+            </p>
+
+            <p>
+              Legal Serves: {percentage(legalServes, totalServes)}%
+            </p>
+
+            <p>
+              Faults: {percentage(faultServes, totalServes)}%
+            </p>
+
+            <p>
+              Aces: {aces}
+            </p>
+
+            <p>
+              Double Faults: {doubleFaults}
+            </p>
+
+            <p>
+              First Serve Legal:{" "}
+              {percentage(firstServeLegal, firstServes.length)}%
+            </p>
+
+            <p>
+              Second Serve Legal:{" "}
+              {percentage(secondServeLegal, secondServes.length)}%
+            </p>
+          </div>
         </div>
       )}
     </div>
