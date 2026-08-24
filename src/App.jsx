@@ -29,6 +29,8 @@ function App() {
   const [points, setPoints] = useState([])
   const [currentPointServes, setCurrentPointServes] = useState([])
   const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
+  const [pendingOutcome, setPendingOutcome] = useState(null)
+  const [responsiblePlayer, setResponsiblePlayer] = useState(null)
 
   const currentPointServer =
     currentPointServes.length > 0
@@ -178,7 +180,7 @@ function App() {
     }
   }
 
-  function finishPoint(winningTeam, outcome) {
+  function finishPoint(winningTeam, outcome, player = null) {
     if (currentPointServes.length === 0) {
       return
     }
@@ -188,7 +190,8 @@ function App() {
       server: currentPointServes[0].player,
       serves: currentPointServes,
       winningTeam,
-      outcome
+      outcome,
+      responsiblePlayer: player
     }
 
     setPoints([
@@ -198,6 +201,8 @@ function App() {
 
     setCurrentPointServes([])
     setPendingWinningTeam(null)
+    setPendingOutcome(null)
+    setResponsiblePlayer(null)
 
     setSelectedPlayer("None")
     setSelectedHand("None")
@@ -766,7 +771,7 @@ function App() {
                     : ""}
 
                   {serve.result &&
-                  serve.result !== "Fault"
+                    serve.result !== "Fault"
                     ? ` — ${serve.result}`
                     : ""}
                 </button>
@@ -801,16 +806,13 @@ function App() {
               </div>
             )}
 
-          {pendingWinningTeam && (
+          {pendingWinningTeam && !pendingOutcome && (
             <div>
               <h2>How did the point end?</h2>
 
               <button
                 onClick={() =>
-                  finishPoint(
-                    pendingWinningTeam,
-                    "Kill"
-                  )
+                  setPendingOutcome("Kill")
                 }
               >
                 Kill
@@ -818,10 +820,7 @@ function App() {
 
               <button
                 onClick={() =>
-                  finishPoint(
-                    pendingWinningTeam,
-                    "Offensive Error"
-                  )
+                  setPendingOutcome("Offensive Error")
                 }
               >
                 Offensive Error
@@ -840,6 +839,58 @@ function App() {
             </div>
           )}
 
+          {pendingOutcome === "Kill" && (
+            <div>
+              <h2>Who got the kill?</h2>
+
+              {players
+                .filter(
+                  (player) =>
+                    getPlayerTeam(player) === pendingWinningTeam
+                )
+                .map((player) => (
+                  <button
+                    key={player}
+                    onClick={() =>
+                      finishPoint(
+                        pendingWinningTeam,
+                        "Kill",
+                        player
+                      )
+                    }
+                  >
+                    {player}
+                  </button>
+                ))}
+            </div>
+          )}
+
+          {pendingOutcome === "Offensive Error" && (
+            <div>
+              <h2>Who made the offensive error?</h2>
+
+              {players
+                .filter(
+                  (player) =>
+                    getPlayerTeam(player) !== pendingWinningTeam
+                )
+                .map((player) => (
+                  <button
+                    key={player}
+                    onClick={() =>
+                      finishPoint(
+                        pendingWinningTeam,
+                        "Offensive Error",
+                        player
+                      )
+                    }
+                  >
+                    {player}
+                  </button>
+                ))}
+            </div>
+          )}
+
           <h2>Points</h2>
 
           <ul>
@@ -854,6 +905,10 @@ function App() {
                 Serves: {point.serves.length}
                 {" — "}
                 {point.outcome}
+
+                {point.responsiblePlayer
+                  ? ` — ${point.responsiblePlayer}`
+                  : ""}
               </li>
             ))}
           </ul>
