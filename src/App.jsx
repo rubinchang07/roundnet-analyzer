@@ -12,23 +12,27 @@ function App() {
     "Player 3",
     "Player 4"
   ])
+
   const teams = [
     [0, 1],
     [2, 3]
   ]
+
   const team1 = teams[0].map((index) => players[index])
   const team2 = teams[1].map((index) => players[index])
+
   const [selectedServeType, setSelectedServeType] = useState("None")
   const [serveStatus, setServeStatus] = useState(null)
   const [selectedFaultType, setSelectedFaultType] = useState(null)
+  const [selectedHand, setSelectedHand] = useState("None")
 
   const [points, setPoints] = useState([])
   const [currentPointServes, setCurrentPointServes] = useState([])
+
   const currentPointServer =
     currentPointServes.length > 0
       ? currentPointServes[0].player
       : null
-  const [selectedHand, setSelectedHand] = useState("None")
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -97,6 +101,13 @@ function App() {
     setServeStatus(null)
     setSelectedFaultType(null)
 
+    // After a fault, keep the same server but reset
+    // the hand and serve type for the next attempt.
+    if (serveStatus === "Fault") {
+      setSelectedHand("None")
+      setSelectedServeType("None")
+    }
+
     const servingTeam = getPlayerTeam(selectedPlayer)
 
     // ACE: serving team automatically wins
@@ -112,14 +123,10 @@ function App() {
       setPoints([...points, newPoint])
       setCurrentPointServes([])
 
-      setPoints([...points, newPoint])
-      setCurrentPointServes([])
-
       setSelectedPlayer("None")
       setSelectedHand("None")
       setSelectedServeType("None")
 
-      return
       return
     }
 
@@ -198,12 +205,10 @@ function App() {
     }
   }
 
-  // Get the most recently recorded serve in the current point
+  // Current rally state
   const latestServe =
     currentPointServes[currentPointServes.length - 1]
 
-  // A rally exists if the most recent serve was legal
-  // or if a fault was played through
   const rallyStarted =
     latestServe &&
     (
@@ -214,6 +219,7 @@ function App() {
       latestServe.playedThrough === true
     )
 
+  // Match statistics
   const totalServes = serves.length
 
   const legalServes = serves.filter(
@@ -256,58 +262,112 @@ function App() {
     return ((part / total) * 100).toFixed(1)
   }
 
-  const playerStats = players.map((player) => {
-    const playerServes = serves.filter(
-      (serve) => serve.player === player
-    )
+  // Player statistics
+  const playerStats = players
+    .map((player) => {
+      const playerServes = serves.filter(
+        (serve) => serve.player === player
+      )
 
-    const legal = playerServes.filter(
-      (serve) => serve.legality === "Legal"
-    ).length
+      const legal = playerServes.filter(
+        (serve) => serve.legality === "Legal"
+      ).length
 
-    const faults = playerServes.filter(
-      (serve) => serve.legality === "Fault"
-    ).length
+      const faults = playerServes.filter(
+        (serve) => serve.legality === "Fault"
+      ).length
 
-    const aces = playerServes.filter(
-      (serve) => serve.result === "Ace"
-    ).length
+      const playerAces = playerServes.filter(
+        (serve) => serve.result === "Ace"
+      ).length
 
-    const firstServes = playerServes.filter(
-      (serve) => serve.serveAttempt === 1
-    )
+      const playerFirstServes = playerServes.filter(
+        (serve) => serve.serveAttempt === 1
+      )
 
-    const firstServeLegal = firstServes.filter(
-      (serve) => serve.legality === "Legal"
-    ).length
+      const playerFirstServeLegal = playerFirstServes.filter(
+        (serve) => serve.legality === "Legal"
+      ).length
 
-    const secondServes = playerServes.filter(
-      (serve) => serve.serveAttempt === 2
-    )
+      const playerSecondServes = playerServes.filter(
+        (serve) => serve.serveAttempt === 2
+      )
 
-    const secondServeLegal = secondServes.filter(
-      (serve) => serve.legality === "Legal"
-    ).length
+      const playerSecondServeLegal = playerSecondServes.filter(
+        (serve) => serve.legality === "Legal"
+      ).length
 
-    const playerDoubleFaults = points.filter(
-      (point) =>
-        point.server === player &&
-        point.outcome === "Double Fault"
-    ).length
+      const playerDoubleFaults = points.filter(
+        (point) =>
+          point.server === player &&
+          point.outcome === "Double Fault"
+      ).length
 
-    return {
-      player,
-      totalServes: playerServes.length,
-      legal,
-      faults,
-      aces,
-      doubleFaults: playerDoubleFaults,
-      firstServes: firstServes.length,
-      firstServeLegal,
-      secondServes: secondServes.length,
-      secondServeLegal
-    }
-  })
+      // Serve breakdown by hand + serve type
+      const serveBreakdown = {}
+
+      playerServes.forEach((serve) => {
+        const key = `${serve.hand} ${serve.type}`
+
+        if (!serveBreakdown[key]) {
+          serveBreakdown[key] = {
+            attempts: 0,
+            legal: 0,
+            faults: 0,
+            aces: 0
+          }
+        }
+
+        serveBreakdown[key].attempts += 1
+
+        if (serve.legality === "Legal") {
+          serveBreakdown[key].legal += 1
+        }
+
+        if (serve.legality === "Fault") {
+          serveBreakdown[key].faults += 1
+        }
+
+        if (serve.result === "Ace") {
+          serveBreakdown[key].aces += 1
+        }
+      })
+
+      // Fault breakdown by fault type
+      const faultBreakdown = {
+        Rim: 0,
+        High: 0,
+        Pocket: 0,
+        "Missed Net": 0
+      }
+
+      playerServes.forEach((serve) => {
+        if (
+          serve.legality === "Fault" &&
+          serve.faultType &&
+          faultBreakdown[serve.faultType] !== undefined
+        ) {
+          faultBreakdown[serve.faultType] += 1
+        }
+      })
+
+      return {
+        player,
+        totalServes: playerServes.length,
+        legal,
+        faults,
+        aces: playerAces,
+        doubleFaults: playerDoubleFaults,
+        firstServes: playerFirstServes.length,
+        firstServeLegal: playerFirstServeLegal,
+        secondServes: playerSecondServes.length,
+        secondServeLegal: playerSecondServeLegal,
+        serveBreakdown,
+        faultBreakdown
+      }
+    })
+    .filter((stats) => stats.totalServes > 0)
+
   return (
     <div>
       <h1>Roundnet Analyzer</h1>
@@ -339,6 +399,7 @@ function App() {
             />
           </div>
         ))}
+
         <div>
           <h2>Teams</h2>
 
@@ -350,6 +411,7 @@ function App() {
             Team 2: {team2.join(" / ")}
           </p>
         </div>
+
         <h2>Select Server</h2>
 
         {players.map((player, index) => (
@@ -368,6 +430,7 @@ function App() {
         <p>
           Selected: {selectedPlayer}
         </p>
+
         <div>
           <h2>Select Hand</h2>
 
@@ -391,6 +454,7 @@ function App() {
             Selected hand: {selectedHand}
           </p>
         </div>
+
         <div>
           <h2>Select Serve Type</h2>
 
@@ -521,7 +585,11 @@ function App() {
 
               <button
                 onClick={() =>
-                  markServe("Fault", "Missed Net", false)
+                  markServe(
+                    "Fault",
+                    "Missed Net",
+                    false
+                  )
                 }
               >
                 Missed Net
@@ -572,9 +640,11 @@ function App() {
                     )
                   }
                 >
-                  #{index + 1} — {serve.player} — Serve {serve.serveAttempt} —{" "}
-                  {serve.hand} — {serve.type} —{" "}
-                  {formatTime(serve.timestamp)} — {serve.legality}
+                  #{index + 1} — {serve.player} — Serve{" "}
+                  {serve.serveAttempt} — {serve.hand} —{" "}
+                  {serve.type} —{" "}
+                  {formatTime(serve.timestamp)} —{" "}
+                  {serve.legality}
 
                   {serve.faultType
                     ? ` (${serve.faultType})`
@@ -589,7 +659,7 @@ function App() {
                     : ""}
 
                   {serve.result &&
-                    serve.result !== "Fault"
+                  serve.result !== "Fault"
                     ? ` — ${serve.result}`
                     : ""}
                 </button>
@@ -601,11 +671,19 @@ function App() {
             <div>
               <h2>Who won the point?</h2>
 
-              <button onClick={() => finishPoint("Team 1")}>
+              <button
+                onClick={() =>
+                  finishPoint("Team 1")
+                }
+              >
                 {team1.join(" / ")}
               </button>
 
-              <button onClick={() => finishPoint("Team 2")}>
+              <button
+                onClick={() =>
+                  finishPoint("Team 2")
+                }
+              >
                 {team2.join(" / ")}
               </button>
             </div>
@@ -616,9 +694,13 @@ function App() {
           <ul>
             {points.map((point, index) => (
               <li key={point.id}>
-                Point {index + 1} — Server: {point.server} — Winner:{" "}
-                {point.winningTeam} — Serves: {point.serves.length}
-                {point.outcome ? ` — ${point.outcome}` : ""}
+                Point {index + 1} — Server:{" "}
+                {point.server} — Winner:{" "}
+                {point.winningTeam} — Serves:{" "}
+                {point.serves.length}
+                {point.outcome
+                  ? ` — ${point.outcome}`
+                  : ""}
               </li>
             ))}
           </ul>
@@ -626,21 +708,25 @@ function App() {
           <div>
             <h2>Match Statistics</h2>
 
+            <p>Total Serves: {totalServes}</p>
+
             <p>
-              Total Serves: {totalServes}
+              Legal Serves:{" "}
+              {percentage(
+                legalServes,
+                totalServes
+              )}%
             </p>
 
             <p>
-              Legal Serves: {percentage(legalServes, totalServes)}%
+              Faults:{" "}
+              {percentage(
+                faultServes,
+                totalServes
+              )}%
             </p>
 
-            <p>
-              Faults: {percentage(faultServes, totalServes)}%
-            </p>
-
-            <p>
-              Aces: {aces}
-            </p>
+            <p>Aces: {aces}</p>
 
             <p>
               Double Faults: {doubleFaults}
@@ -648,12 +734,18 @@ function App() {
 
             <p>
               First Serve Legal:{" "}
-              {percentage(firstServeLegal, firstServes.length)}%
+              {percentage(
+                firstServeLegal,
+                firstServes.length
+              )}%
             </p>
 
             <p>
               Second Serve Legal:{" "}
-              {percentage(secondServeLegal, secondServes.length)}%
+              {percentage(
+                secondServeLegal,
+                secondServes.length
+              )}%
             </p>
           </div>
 
@@ -664,22 +756,31 @@ function App() {
               <div key={stats.player}>
                 <h3>{stats.player}</h3>
 
-                <p>Total Serves: {stats.totalServes}</p>
+                <p>
+                  Total Serves: {stats.totalServes}
+                </p>
 
                 <p>
                   Legal Serves:{" "}
-                  {percentage(stats.legal, stats.totalServes)}%
+                  {percentage(
+                    stats.legal,
+                    stats.totalServes
+                  )}%
                 </p>
 
                 <p>
                   Faults:{" "}
-                  {percentage(stats.faults, stats.totalServes)}%
+                  {percentage(
+                    stats.faults,
+                    stats.totalServes
+                  )}%
                 </p>
 
                 <p>Aces: {stats.aces}</p>
 
                 <p>
-                  Double Faults: {stats.doubleFaults}
+                  Double Faults:{" "}
+                  {stats.doubleFaults}
                 </p>
 
                 <p>
@@ -697,6 +798,87 @@ function App() {
                     stats.secondServes
                   )}%
                 </p>
+
+                <h4>Serve Breakdown</h4>
+
+                {Object.entries(
+                  stats.serveBreakdown
+                ).map(
+                  ([serveName, serveStats]) => (
+                    <div key={serveName}>
+                      <strong>
+                        {serveName}
+                      </strong>
+
+                      <p>
+                        Attempts:{" "}
+                        {serveStats.attempts}
+                      </p>
+
+                      <p>
+                        Legal:{" "}
+                        {percentage(
+                          serveStats.legal,
+                          serveStats.attempts
+                        )}%
+                      </p>
+
+                      <p>
+                        Faults:{" "}
+                        {percentage(
+                          serveStats.faults,
+                          serveStats.attempts
+                        )}%
+                      </p>
+
+                      <p>
+                        Aces: {serveStats.aces}
+                      </p>
+
+                      <p>
+                        Ace Rate:{" "}
+                        {percentage(
+                          serveStats.aces,
+                          serveStats.attempts
+                        )}%
+                      </p>
+                    </div>
+                  )
+                )}
+
+                {stats.faults > 0 && (
+                  <div>
+                    <h4>Fault Breakdown</h4>
+
+                    {Object.entries(
+                      stats.faultBreakdown
+                    )
+                      .filter(
+                        ([, count]) => count > 0
+                      )
+                      .map(
+                        ([faultType, count]) => (
+                          <div key={faultType}>
+                            <strong>
+                              {faultType}
+                            </strong>
+
+                            <p>
+                              Count: {count}
+                            </p>
+
+                            <p>
+                              Share of Faults:{" "}
+                              {percentage(
+                                count,
+                                stats.faults
+                              )}%
+                            </p>
+                          </div>
+                        )
+                      )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
