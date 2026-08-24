@@ -5,6 +5,7 @@ function App() {
 
   const [videoURL, setVideoURL] = useState(null)
   const [serves, setServes] = useState([])
+  const [selectedPlayer, setSelectedPlayer] = useState("Player 1")
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -21,6 +22,7 @@ function App() {
 
     const newServe = {
       timestamp: currentTime,
+      player: selectedPlayer,
       result: result
     }
 
@@ -49,6 +51,28 @@ function App() {
         accept="video/*"
         onChange={handleVideoUpload}
       />
+
+      <div>
+        <h2>Select Server</h2>
+
+        <button onClick={() => setSelectedPlayer("Player 1")}>
+          Player 1
+        </button>
+
+        <button onClick={() => setSelectedPlayer("Player 2")}>
+          Player 2
+        </button>
+
+        <button onClick={() => setSelectedPlayer("Player 3")}>
+          Player 3
+        </button>
+
+        <button onClick={() => setSelectedPlayer("Player 4")}>
+          Player 4
+        </button>
+
+        <p>Selected: {selectedPlayer}</p>
+      </div>
 
       {videoURL && (
         <div>
@@ -79,7 +103,7 @@ function App() {
             {serves.map((serve, index) => (
               <li key={index}>
                 <button onClick={() => jumpToTimestamp(serve.timestamp)}>
-                  Serve {index + 1} — {formatTime(serve.timestamp)} — {serve.result}
+                  {serve.player} — Serve {index + 1} — {formatTime(serve.timestamp)} — {serve.result}
                 </button>
               </li>
             ))}
