@@ -6,6 +6,12 @@ function App() {
   const [videoURL, setVideoURL] = useState(null)
   const [serves, setServes] = useState([])
   const [selectedPlayer, setSelectedPlayer] = useState("Player 1")
+  const [players, setPlayers] = useState([
+    "Player 1",
+    "Player 2",
+    "Player 3",
+    "Player 4"
+  ])
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -41,6 +47,16 @@ function App() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
   }
 
+  function updatePlayerName(index, newName) {
+    const updatedPlayers = [...players]
+    updatedPlayers[index] = newName
+    setPlayers(updatedPlayers)
+
+    if (selectedPlayer === players[index]) {
+      setSelectedPlayer(newName)
+    }
+  }
+
   return (
     <div>
       <h1>Roundnet Analyzer</h1>
@@ -53,23 +69,30 @@ function App() {
       />
 
       <div>
+        <h2>Players</h2>
+
+        {players.map((player, index) => (
+          <div key={index}>
+            <input
+              type="text"
+              value={player}
+              onChange={(event) =>
+                updatePlayerName(index, event.target.value)
+              }
+            />
+          </div>
+        ))}
+
         <h2>Select Server</h2>
 
-        <button onClick={() => setSelectedPlayer("Player 1")}>
-          Player 1
-        </button>
-
-        <button onClick={() => setSelectedPlayer("Player 2")}>
-          Player 2
-        </button>
-
-        <button onClick={() => setSelectedPlayer("Player 3")}>
-          Player 3
-        </button>
-
-        <button onClick={() => setSelectedPlayer("Player 4")}>
-          Player 4
-        </button>
+        {players.map((player, index) => (
+          <button
+            key={index}
+            onClick={() => setSelectedPlayer(player)}
+          >
+            {player}
+          </button>
+        ))}
 
         <p>Selected: {selectedPlayer}</p>
       </div>
