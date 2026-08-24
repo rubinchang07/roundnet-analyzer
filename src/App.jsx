@@ -12,6 +12,7 @@ function App() {
     "Player 3",
     "Player 4"
   ])
+  const [selectedServeType, setSelectedServeType] = useState("Cut")
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -29,7 +30,8 @@ function App() {
     const newServe = {
       timestamp: currentTime,
       player: selectedPlayer,
-      result: result
+      type: selectedServeType,
+      result
     }
 
     setServes([...serves, newServe])
@@ -95,6 +97,28 @@ function App() {
         ))}
 
         <p>Selected: {selectedPlayer}</p>
+
+        <div>
+          <h2>Select Serve Type</h2>
+
+          <button onClick={() => setSelectedServeType("Cut")}>
+            Cut
+          </button>
+
+          <button onClick={() => setSelectedServeType("Reverse")}>
+            Reverse
+          </button>
+
+          <button onClick={() => setSelectedServeType("Jam")}>
+            Jam
+          </button>
+
+          <button onClick={() => setSelectedServeType("Drop")}>
+            Drop
+          </button>
+
+          <p>Selected serve type: {selectedServeType}</p>
+        </div>
       </div>
 
       {videoURL && (
@@ -123,13 +147,15 @@ function App() {
           <h2>Serves</h2>
 
           <ul>
-            {serves.map((serve, index) => (
-              <li key={index}>
-                <button onClick={() => jumpToTimestamp(serve.timestamp)}>
-                  {serve.player} — Serve {index + 1} — {formatTime(serve.timestamp)} — {serve.result}
-                </button>
-              </li>
-            ))}
+            <ul>
+              {serves.map((serve, index) => (
+                <li key={index}>
+                  <button onClick={() => jumpToTimestamp(serve.timestamp)}>
+                    #{index + 1} — {serve.player} — {serve.type} — {formatTime(serve.timestamp)} — {serve.result}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </ul>
         </div>
       )}
