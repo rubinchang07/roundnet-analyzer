@@ -240,6 +240,26 @@ button:disabled {
   padding: 24px;
 }
 
+.player-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.player-card-header h3 {
+  margin: 0;
+}
+
+.player-card-header button {
+  flex-shrink: 0;
+}
+
+.player-details {
+  margin-top: 12px;
+}
+
 .stats-header h2,
 .stats-subsection h2 {
   margin-top: 0;
