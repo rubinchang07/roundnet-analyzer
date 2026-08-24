@@ -36,6 +36,58 @@ function App() {
       ? currentPointServes[0].player
       : null
 
+  const teamStats = ["Team 1", "Team 2"].map((teamName) => {
+    const teamPoints = points.filter(
+      (point) => point.winningTeam === teamName
+    )
+
+    const pointsWon = teamPoints.length
+
+    const servingPoints = points.filter(
+      (point) =>
+        getPlayerTeam(point.server) === teamName
+    )
+
+    const servingPointsWon = servingPoints.filter(
+      (point) => point.winningTeam === teamName
+    ).length
+
+    const receivingPoints = points.filter(
+      (point) =>
+        getPlayerTeam(point.server) !== teamName
+    )
+
+    const receivingPointsWon = receivingPoints.filter(
+      (point) => point.winningTeam === teamName
+    ).length
+
+    const teamAces = points.filter(
+      (point) =>
+        point.winningTeam === teamName &&
+        point.outcome === "Ace"
+    ).length
+
+    const teamDoubleFaults = points.filter(
+      (point) =>
+        getPlayerTeam(point.server) === teamName &&
+        point.outcome === "Double Fault"
+    ).length
+
+    return {
+      teamName,
+      pointsWon,
+
+      servingPoints: servingPoints.length,
+      servingPointsWon,
+
+      receivingPoints: receivingPoints.length,
+      receivingPointsWon,
+
+      aces: teamAces,
+      doubleFaults: teamDoubleFaults
+    }
+  })
+
   function handleVideoUpload(event) {
     const file = event.target.files[0]
 
@@ -976,6 +1028,64 @@ function App() {
                 secondServes.length
               )}%
             </p>
+          </div>
+
+          <div>
+            <h2>Team Statistics</h2>
+
+            {teamStats.map((stats) => (
+              <div key={stats.teamName}>
+                <h3>
+                  {stats.teamName === "Team 1"
+                    ? team1.join(" / ")
+                    : team2.join(" / ")}
+                </h3>
+
+                <p>
+                  Points Won: {stats.pointsWon}
+                </p>
+
+                <p>
+                  Serving Points: {stats.servingPoints}
+                </p>
+
+                <p>
+                  Serving Points Won: {stats.servingPointsWon}
+                </p>
+
+                <p>
+                  Hold %:{" "}
+                  {percentage(
+                    stats.servingPointsWon,
+                    stats.servingPoints
+                  )}%
+                </p>
+
+                <p>
+                  Receiving Points: {stats.receivingPoints}
+                </p>
+
+                <p>
+                  Receiving Points Won: {stats.receivingPointsWon}
+                </p>
+
+                <p>
+                  Break %:{" "}
+                  {percentage(
+                    stats.receivingPointsWon,
+                    stats.receivingPoints
+                  )}%
+                </p>
+
+                <p>
+                  Aces: {stats.aces}
+                </p>
+
+                <p>
+                  Double Faults: {stats.doubleFaults}
+                </p>
+              </div>
+            ))}
           </div>
 
           <div>
