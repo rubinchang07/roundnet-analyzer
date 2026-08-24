@@ -28,6 +28,7 @@ function App() {
     currentPointServes.length > 0
       ? currentPointServes[0].player
       : null
+  const [selectedHand, setSelectedHand] = useState("Right")
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -51,6 +52,7 @@ function App() {
     const newServe = {
       timestamp: currentTime,
       player: selectedPlayer,
+      hand: selectedHand,
       type: selectedServeType,
       legality: serveStatus,
       faultType,
@@ -178,7 +180,29 @@ function App() {
         <p>
           Selected: {selectedPlayer}
         </p>
+        <div>
+          <h2>Select Hand</h2>
 
+          <button
+            onClick={() =>
+              setSelectedHand("Left")
+            }
+          >
+            Left
+          </button>
+
+          <button
+            onClick={() =>
+              setSelectedHand("Right")
+            }
+          >
+            Right
+          </button>
+
+          <p>
+            Selected hand: {selectedHand}
+          </p>
+        </div>
         <div>
           <h2>Select Serve Type</h2>
 
@@ -298,6 +322,14 @@ function App() {
               >
                 Pocket
               </button>
+
+              <button
+                onClick={() =>
+                  setSelectedFaultType("Missed Net")
+                }
+              >
+                Missed Net
+              </button>
             </div>
           )}
 
@@ -345,6 +377,7 @@ function App() {
                   }
                 >
                   #{index + 1} — {serve.player} —{" "}
+                  {serve.hand} —{" "}
                   {serve.type} —{" "}
                   {formatTime(serve.timestamp)} —{" "}
                   {serve.legality}
