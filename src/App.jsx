@@ -255,6 +255,59 @@ function App() {
 
     return ((part / total) * 100).toFixed(1)
   }
+
+  const playerStats = players.map((player) => {
+    const playerServes = serves.filter(
+      (serve) => serve.player === player
+    )
+
+    const legal = playerServes.filter(
+      (serve) => serve.legality === "Legal"
+    ).length
+
+    const faults = playerServes.filter(
+      (serve) => serve.legality === "Fault"
+    ).length
+
+    const aces = playerServes.filter(
+      (serve) => serve.result === "Ace"
+    ).length
+
+    const firstServes = playerServes.filter(
+      (serve) => serve.serveAttempt === 1
+    )
+
+    const firstServeLegal = firstServes.filter(
+      (serve) => serve.legality === "Legal"
+    ).length
+
+    const secondServes = playerServes.filter(
+      (serve) => serve.serveAttempt === 2
+    )
+
+    const secondServeLegal = secondServes.filter(
+      (serve) => serve.legality === "Legal"
+    ).length
+
+    const playerDoubleFaults = points.filter(
+      (point) =>
+        point.server === player &&
+        point.outcome === "Double Fault"
+    ).length
+
+    return {
+      player,
+      totalServes: playerServes.length,
+      legal,
+      faults,
+      aces,
+      doubleFaults: playerDoubleFaults,
+      firstServes: firstServes.length,
+      firstServeLegal,
+      secondServes: secondServes.length,
+      secondServeLegal
+    }
+  })
   return (
     <div>
       <h1>Roundnet Analyzer</h1>
@@ -602,6 +655,50 @@ function App() {
               Second Serve Legal:{" "}
               {percentage(secondServeLegal, secondServes.length)}%
             </p>
+          </div>
+
+          <div>
+            <h2>Player Statistics</h2>
+
+            {playerStats.map((stats) => (
+              <div key={stats.player}>
+                <h3>{stats.player}</h3>
+
+                <p>Total Serves: {stats.totalServes}</p>
+
+                <p>
+                  Legal Serves:{" "}
+                  {percentage(stats.legal, stats.totalServes)}%
+                </p>
+
+                <p>
+                  Faults:{" "}
+                  {percentage(stats.faults, stats.totalServes)}%
+                </p>
+
+                <p>Aces: {stats.aces}</p>
+
+                <p>
+                  Double Faults: {stats.doubleFaults}
+                </p>
+
+                <p>
+                  First Serve Legal:{" "}
+                  {percentage(
+                    stats.firstServeLegal,
+                    stats.firstServes
+                  )}%
+                </p>
+
+                <p>
+                  Second Serve Legal:{" "}
+                  {percentage(
+                    stats.secondServeLegal,
+                    stats.secondServes
+                  )}%
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
