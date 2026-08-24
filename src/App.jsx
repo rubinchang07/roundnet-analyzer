@@ -5,19 +5,29 @@ function App() {
 
   const [videoURL, setVideoURL] = useState(null)
   const [serves, setServes] = useState([])
-  const [selectedPlayer, setSelectedPlayer] = useState("Player 1")
+  const [selectedPlayer, setSelectedPlayer] = useState("None")
   const [players, setPlayers] = useState([
     "Player 1",
     "Player 2",
     "Player 3",
     "Player 4"
   ])
+  const [teams, setTeams] = useState([
+    [0, 1],
+    [2, 3]
+  ])
+  const team1 = teams[0].map((index) => players[index])
+  const team2 = teams[1].map((index) => players[index])
   const [selectedServeType, setSelectedServeType] = useState("None")
   const [serveStatus, setServeStatus] = useState(null)
   const [selectedFaultType, setSelectedFaultType] = useState(null)
 
   const [points, setPoints] = useState([])
   const [currentPointServes, setCurrentPointServes] = useState([])
+  const currentPointServer =
+    currentPointServes.length > 0
+      ? currentPointServes[0].player
+      : null
 
   function handleVideoUpload(event) {
     const file = event.target.files[0]
@@ -55,7 +65,7 @@ function App() {
     setSelectedFaultType(null)
   }
 
-  function finishPoint(winner) {
+  function finishPoint(winningTeam) {
     if (currentPointServes.length === 0) {
       return
     }
@@ -63,7 +73,7 @@ function App() {
     const newPoint = {
       server: currentPointServes[0].player,
       serves: currentPointServes,
-      pointWinner: winner
+      winningTeam: winningTeam
     }
 
     setPoints([...points, newPoint])
@@ -139,14 +149,26 @@ function App() {
             />
           </div>
         ))}
+        <div>
+          <h2>Teams</h2>
 
+          <p>
+            Team 1: {team1.join(" / ")}
+          </p>
+
+          <p>
+            Team 2: {team2.join(" / ")}
+          </p>
+        </div>
         <h2>Select Server</h2>
 
         {players.map((player, index) => (
           <button
             key={index}
-            onClick={() =>
-              setSelectedPlayer(player)
+            onClick={() => setSelectedPlayer(player)}
+            disabled={
+              currentPointServer !== null &&
+              currentPointServer !== player
             }
           >
             {player}
@@ -340,7 +362,7 @@ function App() {
                     : ""}
 
                   {serve.result &&
-                  serve.result !== "Fault"
+                    serve.result !== "Fault"
                     ? ` — ${serve.result}`
                     : ""}
                 </button>
@@ -352,16 +374,13 @@ function App() {
             <div>
               <h2>Who won the point?</h2>
 
-              {players.map((player, index) => (
-                <button
-                  key={index}
-                  onClick={() =>
-                    finishPoint(player)
-                  }
-                >
-                  {player}
-                </button>
-              ))}
+              <button onClick={() => finishPoint("Team 1")}>
+                {team1.join(" / ")}
+              </button>
+
+              <button onClick={() => finishPoint("Team 2")}>
+                {team2.join(" / ")}
+              </button>
             </div>
           )}
 
@@ -370,10 +389,7 @@ function App() {
           <ul>
             {points.map((point, index) => (
               <li key={index}>
-                Point {index + 1} — Server:{" "}
-                {point.server} — Winner:{" "}
-                {point.pointWinner} — Serves:{" "}
-                {point.serves.length}
+                Point {index + 1} — Server: {point.server} — Winner: {point.winningTeam} — Serves: {point.serves.length}
               </li>
             ))}
           </ul>
