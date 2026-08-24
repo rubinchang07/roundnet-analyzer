@@ -1,16 +1,68 @@
-# React + Vite
+# Roundnet Analyzer
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A web application for analyzing roundnet match footage and tracking gameplay statistics.
 
-Currently, two official plugins are available:
+The goal of Roundnet Analyzer is to make reviewing match footage easier by allowing players to mark important events in a video and return to them instantly.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Current Features
 
-## React Compiler
+- Upload roundnet match footage
+- Play and review footage directly in the browser
+- Mark serves while watching a match
+- Automatically record the timestamp of each marked serve
+- Click a recorded serve to jump directly back to that moment in the video
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Planned Features
 
-## Expanding the Oxlint configuration
+Future versions of the project may include:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- Tagging serve outcomes (ace, fault, return, etc.)
+- Tracking individual players
+- Recording point outcomes
+- Serve percentage and efficiency statistics
+- Offensive and defensive statistics
+- Match summaries and stat dashboards
+- Saving match analysis between sessions
+- Improved video navigation and event tagging
+
+## Why I Built This
+
+Roundnet players often review match footage to evaluate serving, offense, defense, and decision-making. However, manually searching through an entire match can make detailed analysis tedious.
+
+Roundnet Analyzer is designed to turn match footage into structured, searchable gameplay data.
+
+## Tech Stack
+
+- React
+- JavaScript
+- Vite
+- HTML/CSS
+
+## Getting Started
+
+Clone the repository:
+
+```bash
+git clone https://github.com/rubinchang07/roundnet-analyzer.git
+cd roundnet-analyzer
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Then open the local address provided by Vite in your browser.
+
+## Project Status
+
+Currently in development.
+
+The first prototype supports video uploads, serve timestamping, and navigation between marked serves.
