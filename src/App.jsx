@@ -62,6 +62,8 @@ function App() {
       ? currentPointServes[0].playerId
       : null
 
+  const [actionHistory, setActionHistory] = useState([])
+
   // -----------------------------
   // Team statistics
   // -----------------------------
@@ -142,7 +144,31 @@ function App() {
       setSelectedServeType("None")
 
       setExpandedPlayerId(null)
+      setActionHistory([])
     }
+  }
+
+  function undoLastAction() {
+    if (actionHistory.length == 0)
+      return
+
+    const lastSnapshot = actionHistory[actionHistory.length - 1]
+
+    setServes(lastSnapshot.serves)
+    setPoints(lastSnapshot.points)
+    setCurrentPointServes(lastSnapshot.currentPointServes)
+
+    setSelectedPlayerId(lastSnapshot.selectedPlayerId)
+    setSelectedHand(lastSnapshot.selectedHand)
+    setSelectedServeType(lastSnapshot.selectedServeType)
+
+    setServeStatus(lastSnapshot.serveStatus)
+    setSelectedFaultType(lastSnapshot.selectedFaultType)
+
+    setPendingWinningTeam(lastSnapshot.pendingWinningTeam)
+    setPendingOutcome(lastSnapshot.pendingOutcome)
+
+    setActionHistory(actionHistory.slice(0, -1))
   }
 
   function markServe(
@@ -158,6 +184,8 @@ function App() {
       alert("Select a server, hand, and serve type first.")
       return
     }
+
+    saveSnapshot()
 
     const currentTime = videoRef.current.currentTime
     const serveAttempt = currentPointServes.length + 1
@@ -265,6 +293,26 @@ function App() {
     }
   }
 
+  function saveSnapshot() {
+    const snapshot = structuredClone({
+      serves,
+      points,
+      currentPointServes,
+      selectedPlayerId,
+      selectedHand,
+      selectedServeType,
+      serveStatus,
+      selectedFaultType,
+      pendingWinningTeam,
+      pendingOutcome
+    })
+
+    setActionHistory((previousHistory) => [
+      ...previousHistory,
+      snapshot
+    ])
+  }
+
   function finishPoint(
     winningTeam,
     outcome,
@@ -273,6 +321,8 @@ function App() {
     if (currentPointServes.length === 0) {
       return
     }
+
+    saveSnapshot()
 
     const newPoint = {
       id: crypto.randomUUID(),
@@ -627,6 +677,16 @@ function App() {
           </div>
 
           <aside className="controls-panel">
+
+            <div className="undo-section">
+              <button
+                className="undo-button"
+                onClick={undoLastAction}
+                disabled={actionHistory.length === 0}
+              >
+                Undo Last Action
+              </button>
+            </div>
 
             {/* PLAYERS */}
 
