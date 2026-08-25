@@ -1,18 +1,39 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import "./App.css"
+
+function loadSavedMatch() {
+  const savedMatch = localStorage.getItem("roundnetMatch")
+
+  if (!savedMatch) {
+    return null
+  }
+
+  try {
+    return JSON.parse(savedMatch)
+  } catch {
+    return null
+  }
+}
 
 function App() {
   const videoRef = useRef(null)
 
-  const [videoURL, setVideoURL] = useState(null)
-  const [serves, setServes] = useState([])
+  const savedMatch = loadSavedMatch()
 
-  const [players, setPlayers] = useState([
-    { id: "player-1", name: "Player 1" },
-    { id: "player-2", name: "Player 2" },
-    { id: "player-3", name: "Player 3" },
-    { id: "player-4", name: "Player 4" }
-  ])
+  const [videoURL, setVideoURL] = useState(null)
+
+  const [serves, setServes] = useState(
+    savedMatch?.serves ?? []
+  )
+
+  const [players, setPlayers] = useState(
+    savedMatch?.players ?? [
+      { id: "player-1", name: "Player 1" },
+      { id: "player-2", name: "Player 2" },
+      { id: "player-3", name: "Player 3" },
+      { id: "player-4", name: "Player 4" }
+    ]
+  )
 
   const [selectedPlayerId, setSelectedPlayerId] = useState(null)
 
@@ -48,8 +69,13 @@ function App() {
   const [selectedFaultType, setSelectedFaultType] = useState(null)
   const [selectedHand, setSelectedHand] = useState("None")
 
-  const [points, setPoints] = useState([])
-  const [currentPointServes, setCurrentPointServes] = useState([])
+  const [points, setPoints] = useState(
+    savedMatch?.points ?? []
+  )
+
+  const [currentPointServes, setCurrentPointServes] = useState(
+    savedMatch?.currentPointServes ?? []
+  )
 
   const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
   const [pendingOutcome, setPendingOutcome] = useState(null)
@@ -63,6 +89,25 @@ function App() {
       : null
 
   const [actionHistory, setActionHistory] = useState([])
+
+  useEffect(() => {
+    const matchData = {
+      players,
+      serves,
+      points,
+      currentPointServes
+    }
+
+    localStorage.setItem(
+      "roundnetMatch",
+      JSON.stringify(matchData)
+    )
+  }, [
+    players,
+    serves,
+    points,
+    currentPointServes
+  ])
 
   // -----------------------------
   // Team statistics
@@ -126,26 +171,55 @@ function App() {
 
     if (file) {
       const url = URL.createObjectURL(file)
-
       setVideoURL(url)
-
-      setServes([])
-      setPoints([])
-      setCurrentPointServes([])
-
-      setServeStatus(null)
-      setSelectedFaultType(null)
-
-      setPendingWinningTeam(null)
-      setPendingOutcome(null)
-
-      setSelectedPlayerId(null)
-      setSelectedHand("None")
-      setSelectedServeType("None")
-
-      setExpandedPlayerId(null)
-      setActionHistory([])
     }
+  }
+
+  function startNewMatch() {
+    const hasMatchData =
+      serves.length > 0 ||
+      points.length > 0 ||
+      currentPointServes.length > 0
+
+    if (hasMatchData) {
+      const confirmed = window.confirm(
+        "Start a new match? This will clear the current analysis."
+      )
+
+      if (!confirmed) {
+        return
+      }
+    }
+    // 1. Reset player names
+    setPlayers((currentPlayers) =>
+      currentPlayers.map((player, index) => ({
+        ...player,
+        name: `Player ${index + 1}`
+      }))
+    )
+
+    // 2. Clear serves
+    setServes([])
+
+    // 3. Clear points
+    setPoints([])
+
+    // 4. Clear current point
+    setCurrentPointServes([])
+
+    // 5. Clear undo history
+    setActionHistory([])
+
+    // 6. Reset temporary selections
+    setSelectedPlayerId(null)
+    setSelectedHand("None")
+    setSelectedServeType("None")
+
+    setServeStatus(null)
+    setSelectedFaultType(null)
+
+    setPendingWinningTeam(null)
+    setPendingOutcome(null)
   }
 
   function undoLastAction() {
@@ -678,13 +752,20 @@ function App() {
 
           <aside className="controls-panel">
 
-            <div className="undo-section">
+            <div className="match-actions">
               <button
                 className="undo-button"
                 onClick={undoLastAction}
                 disabled={actionHistory.length === 0}
               >
                 Undo Last Action
+              </button>
+
+              <button
+                className="new-match-button"
+                onClick={startNewMatch}
+              >
+                Start New Match
               </button>
             </div>
 
