@@ -99,6 +99,11 @@ function App() {
   const [editPointOutcome, setEditPointOutcome] = useState(null)
   const [editResponsiblePlayerId, setEditResponsiblePlayerId] = useState(null)
 
+  const [editServeStatus, setEditServeStatus] = useState(null)
+  const [editFaultType, setEditFaultType] = useState(null)
+  const [editPlayedThrough, setEditPlayedThrough] = useState(null)
+  const [editServeResult, setEditServeResult] = useState(null)
+
   useEffect(() => {
     const matchData = {
       players,
@@ -233,8 +238,14 @@ function App() {
 
   function startEditingServe(serve) {
     setEditingServeId(serve.id)
+
     setEditHand(serve.hand)
     setEditServeType(serve.type)
+
+    setEditServeStatus(serve.legality)
+    setEditFaultType(serve.faultType)
+    setEditPlayedThrough(serve.playedThrough)
+    setEditServeResult(serve.result)
   }
 
   function startEditingPoint(points) {
@@ -245,50 +256,230 @@ function App() {
   }
 
   function saveServeEdit() {
+    if (editingServeId === null) {
+      return
+    }
+    
+    const editedServeFields = {
+      hand: editHand,
+      type: editServeType,
+      legality: editServeStatus,
+      faultType: editFaultType,
+      playedThrough: editPlayedThrough,
+      result: editServeResult
+    }
+
+    // Find the original serve before changing anything
+    const originalServe = serves.find(
+      (serve) => serve.id === editingServeId
+    )
+
+    if (!originalServe) {
+      return
+    }
+
+    const updatedServe = {
+      ...originalServe,
+      ...editedServeFields
+    }
+
+    // Is this serve part of the unfinished current point?
+    const isInCurrentPoint = currentPointServes.some(
+      (serve) => serve.id === editingServeId
+    )
+
+    // Is this serve already inside a completed point?
+    const containingPoint = points.find((point) =>
+      point.serves.some(
+        (serve) => serve.id === editingServeId
+      )
+    )
+
+    const latestPoint =
+      points.length > 0
+        ? points[points.length - 1]
+        : null
+
+    const isLatestPoint =
+      containingPoint &&
+      latestPoint &&
+      containingPoint.id === latestPoint.id
+
+    const becomesUnplayedFirstServeFault =
+      updatedServe.serveAttempt === 1 &&
+      editServeStatus === "Fault" &&
+      editPlayedThrough === false
+
+    if (
+      containingPoint &&
+      becomesUnplayedFirstServeFault &&
+      !isLatestPoint
+    ) {
+      alert(
+        "This edit would reopen an earlier point. Structural edits can only be made to the most recent point."
+      )
+      return
+    }
+
     saveSnapshot()
 
-    setServes((currentServes) =>
-      currentServes.map((serves) =>
-        serves.id === editingServeId
-          ? {
-            ...serves,
-            hand: editHand,
-            type: editServeType
-          }
-          : serves
-      )
-    )
-
-    setCurrentPointServes((currentPointServes) =>
-      currentPointServes.map((serves) =>
-        serves.id === editingServeId
-          ? {
-            ...serves,
-            hand: editHand,
-            type: editServeType
-          }
-          : serves
-      )
-    )
-
-    setPoints((currentPoints) =>
-      currentPoints.map((point) => ({
-        ...point,
-        serves: point.serves.map((serve) =>
+    if (
+      containingPoint &&
+      becomesUnplayedFirstServeFault
+    ) {
+      // Update the serve in the master serve history
+      setServes((currentServes) =>
+        currentServes.map((serve) =>
           serve.id === editingServeId
-            ? {
-              ...serve,
-              hand: editHand,
-              type: editServeType
-            }
+            ? updatedServe
             : serve
         )
-      }))
+      )
+
+      // Remove the old completed point
+      setPoints((currentPoints) =>
+        currentPoints.filter(
+          (point) =>
+            point.id !== containingPoint.id
+        )
+      )
+
+      // Reopen the point with the edited first serve
+      setCurrentPointServes([
+        updatedServe
+      ])
+
+      // Restore the original server
+      setSelectedPlayerId(updatedServe.playerId)
+
+      // Hand/type must be chosen for serve 2
+      setSelectedHand("None")
+      setSelectedServeType("None")
+
+      // Close the editor
+      setEditingServeId(null)
+      setEditHand("None")
+      setEditServeType("None")
+      setEditServeStatus(null)
+      setEditFaultType(null)
+      setEditPlayedThrough(null)
+      setEditServeResult(null)
+
+      return
+    }
+    // --------------------------------
+    // UPDATE CURRENT POINT SERVES
+    // --------------------------------
+
+    const updatedCurrentPointServes =
+      currentPointServes.map((serve) =>
+        serve.id === editingServeId
+          ? {
+            ...serve,
+            ...editedServeFields
+          }
+          : serve
+      )
+
+    setCurrentPointServes(
+      updatedCurrentPointServes
     )
+
+    // --------------------------------
+    // CASE 1:
+    // SERVE IS INSIDE COMPLETED POINT
+    // --------------------------------
+
+    if (containingPoint) {
+      setPoints((currentPoints) =>
+        currentPoints.map((point) => {
+          if (point.id !== containingPoint.id) {
+            return point
+          }
+
+          const updatedPointServes =
+            point.serves.map((serve) =>
+              serve.id === editingServeId
+                ? {
+                  ...serve,
+                  ...editedServeFields
+                }
+                : serve
+            )
+
+          // Edited serve is now an Ace
+          if (
+            editServeStatus === "Legal" &&
+            editServeResult === "Ace"
+          ) {
+            const servingTeam =
+              getPlayerTeam(
+                originalServe.playerId
+              )
+
+            return {
+              ...point,
+              serves: updatedPointServes,
+              winningTeam: servingTeam,
+              outcome: "Ace",
+              responsiblePlayerId: null
+            }
+          }
+
+          return {
+            ...point,
+            serves: updatedPointServes
+          }
+        })
+      )
+    }
+
+    // --------------------------------
+    // CASE 2:
+    // UNFINISHED SERVE BECOMES ACE
+    // --------------------------------
+
+    if (
+      isInCurrentPoint &&
+      editServeStatus === "Legal" &&
+      editServeResult === "Ace"
+    ) {
+      const servingTeam =
+        getPlayerTeam(
+          originalServe.playerId
+        )
+
+      const newPoint = {
+        id: crypto.randomUUID(),
+        serverId:
+          updatedCurrentPointServes[0].playerId,
+        serves: updatedCurrentPointServes,
+        winningTeam: servingTeam,
+        outcome: "Ace",
+        responsiblePlayerId: null
+      }
+
+      setPoints((currentPoints) => [
+        ...currentPoints,
+        newPoint
+      ])
+
+      // Ace completes the point
+      setCurrentPointServes([])
+    }
+
+    // --------------------------------
+    // CLOSE EDITOR
+    // --------------------------------
 
     setEditingServeId(null)
     setEditHand("None")
     setEditServeType("None")
+
+    setEditServeStatus(null)
+    setEditFaultType(null)
+    setEditPlayedThrough(null)
+    setEditServeResult(null)
   }
 
   function savePointEdit() {
@@ -319,8 +510,14 @@ function App() {
 
   function cancelServeEdit() {
     setEditingServeId(null)
+
     setEditHand("None")
     setEditServeType("None")
+
+    setEditServeStatus(null)
+    setEditFaultType(null)
+    setEditPlayedThrough(null)
+    setEditServeResult(null)
   }
 
   function cancelPointEdit() {
@@ -1400,6 +1597,152 @@ function App() {
                             ))}
                           </div>
                         </div>
+
+                        <div className="serve-edit-group">
+                          <span>Legality</span>
+
+                          <div className="button-group">
+                            <button
+                              className={
+                                editServeStatus === "Legal"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => {
+                                setEditServeStatus("Legal")
+                                setEditFaultType(null)
+                                setEditPlayedThrough(null)
+                                setEditServeResult(null)
+                              }}
+                            >
+                              Legal
+                            </button>
+
+                            <button
+                              className={
+                                editServeStatus === "Fault"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => {
+                                setEditServeStatus("Fault")
+                                setEditFaultType(null)
+                                setEditPlayedThrough(null)
+                                setEditServeResult("Fault")
+                              }}
+                            >
+                              Fault
+                            </button>
+                          </div>
+                        </div>
+
+                        {editServeStatus === "Fault" && (
+                          <div className="serve-edit-group">
+                            <span>Fault Type</span>
+
+                            <div className="button-group">
+                              <button
+                                className={
+                                  editFaultType === "Missed Net"
+                                    ? "selected-button"
+                                    : ""
+                                }
+                                onClick={() => {
+                                  setEditFaultType("Missed Net")
+                                  setEditPlayedThrough(false)
+                                }}
+                              >
+                                Missed Net
+                              </button>
+
+                              {["Rim", "High", "Pocket"].map((faultType) => (
+                                <button
+                                  key={faultType}
+                                  className={
+                                    editFaultType === faultType
+                                      ? "selected-button"
+                                      : ""
+                                  }
+                                  onClick={() => {
+                                    setEditFaultType(faultType)
+                                    setEditPlayedThrough(null)
+                                  }}
+                                >
+                                  {faultType}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {editServeStatus === "Fault" &&
+                          editFaultType !== "Missed Net" && (
+                            <div className="serve-edit-group">
+                              <span>Played Through?</span>
+
+                              <div className="button-group">
+                                <button
+                                  className={
+                                    editPlayedThrough === true
+                                      ? "selected-button"
+                                      : ""
+                                  }
+                                  onClick={() =>
+                                    setEditPlayedThrough(true)
+                                  }
+                                >
+                                  Yes
+                                </button>
+
+                                <button
+                                  className={
+                                    editPlayedThrough === false
+                                      ? "selected-button"
+                                      : ""
+                                  }
+                                  onClick={() =>
+                                    setEditPlayedThrough(false)
+                                  }
+                                >
+                                  No
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                        {editServeStatus === "Legal" && (
+                          <div className="serve-edit-group">
+                            <span>Result</span>
+
+                            <div className="button-group">
+                              <button
+                                className={
+                                  editServeResult === "Ace"
+                                    ? "selected-button"
+                                    : ""
+                                }
+                                onClick={() =>
+                                  setEditServeResult("Ace")
+                                }
+                              >
+                                Ace
+                              </button>
+
+                              <button
+                                className={
+                                  editServeResult === "Returned"
+                                    ? "selected-button"
+                                    : ""
+                                }
+                                onClick={() =>
+                                  setEditServeResult("Returned")
+                                }
+                              >
+                                Returned
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="serve-edit-actions">
                           <button onClick={cancelServeEdit}>
