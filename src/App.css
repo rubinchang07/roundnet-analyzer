@@ -735,3 +735,145 @@ button:disabled {
   border-bottom: 2px solid #1f2937;
   font-weight: 600;
 }
+
+/* =========================
+   POINT EDITING
+   ========================= */
+
+.point-edit-controls {
+  margin-top: 12px;
+  padding: 14px;
+
+  display: grid;
+  gap: 14px;
+
+  background: #ffffff;
+
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid #ffd400;
+  border-radius: 8px;
+}
+
+.point-edit-group {
+  display: grid;
+  gap: 7px;
+}
+
+.point-edit-group > span {
+  color: #4b5563;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Buttons inside the point editor */
+
+.point-edit-group .button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.point-edit-group .button-group button {
+  padding: 7px 11px;
+
+  background: #ffffff;
+  color: #1f2937;
+
+  border: 1px solid #d1d5db;
+  border-bottom: 2px solid #1f2937;
+  border-radius: 7px;
+
+  font-size: 0.9rem;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.point-edit-group .button-group button:hover {
+  background: #fffdf2;
+  border-color: #d6b400;
+}
+
+.point-edit-group .button-group button:active {
+  transform: translateY(1px);
+}
+
+/* Selected winner / outcome / player */
+
+.point-edit-group .button-group button.selected-button {
+  background: #111827;
+  color: #ffffff;
+
+  border-color: #111827;
+  border-bottom-color: #ffd400;
+}
+
+/* Cancel / Save row */
+
+.point-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  padding-top: 12px;
+  margin-top: 2px;
+
+  border-top: 1px solid #eceff3;
+}
+
+.point-edit-actions button {
+  padding: 7px 12px;
+
+  background: #ffffff;
+  color: #1f2937;
+
+  border: 1px solid #cbd5e1;
+  border-bottom: 2px solid #1f2937;
+  border-radius: 7px;
+
+  font-weight: 600;
+}
+
+.point-edit-actions button:hover {
+  background: #f9fafb;
+}
+
+/* Save should be visually stronger */
+
+.point-edit-actions .save-edit-button {
+  background: #111827;
+  color: #ffffff;
+
+  border-color: #111827;
+  border-bottom-color: #ffd400;
+}
+
+.point-edit-actions .save-edit-button:hover {
+  background: #1f2937;
+}
+
+/* Normal Edit button */
+
+.edit-point-button {
+  width: fit-content;
+
+  margin-top: 8px;
+  padding: 6px 12px;
+
+  background: #ffffff;
+  color: #1f2937;
+
+  border: 1px solid #cbd5e1;
+  border-bottom: 2px solid #1f2937;
+  border-radius: 7px;
+
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.edit-point-button:hover {
+  background: #fffdf2;
+  border-color: #d6b400;
+}

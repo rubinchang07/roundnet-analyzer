@@ -94,6 +94,11 @@ function App() {
   const [editHand, setEditHand] = useState("None")
   const [editServeType, setEditServeType] = useState("None")
 
+  const [editingPointId, setEditingPointId] = useState(null)
+  const [editWinningTeam, setEditWinningTeam] = useState(null)
+  const [editPointOutcome, setEditPointOutcome] = useState(null)
+  const [editResponsiblePlayerId, setEditResponsiblePlayerId] = useState(null)
+
   useEffect(() => {
     const matchData = {
       players,
@@ -232,6 +237,13 @@ function App() {
     setEditServeType(serve.type)
   }
 
+  function startEditingPoint(points) {
+    setEditingPointId(points.id)
+    setEditWinningTeam(points.winningTeam)
+    setEditPointOutcome(points.outcome)
+    setEditResponsiblePlayerId(points.responsiblePlayerId)
+  }
+
   function saveServeEdit() {
     saveSnapshot()
 
@@ -279,10 +291,43 @@ function App() {
     setEditServeType("None")
   }
 
+  function savePointEdit() {
+    if (editingPointId === null) {
+      return
+    }
+
+    saveSnapshot()
+
+    setPoints((currentPoints) =>
+      currentPoints.map((point) =>
+        point.id === editingPointId
+          ? {
+            ...point,
+            winningTeam: editWinningTeam,
+            outcome: editPointOutcome,
+            responsiblePlayerId: editResponsiblePlayerId
+          }
+          : point
+      )
+    )
+
+    setEditingPointId(null)
+    setEditWinningTeam(null)
+    setEditPointOutcome(null)
+    setEditResponsiblePlayerId(null)
+  }
+
   function cancelServeEdit() {
     setEditingServeId(null)
     setEditHand("None")
     setEditServeType("None")
+  }
+
+  function cancelPointEdit() {
+    setEditingPointId(null)
+    setEditWinningTeam(null)
+    setEditPointOutcome(null)
+    setEditResponsiblePlayerId(null)
   }
 
   function undoLastAction() {
@@ -1405,14 +1450,11 @@ function App() {
 
                     <span>
                       Server:{" "}
-                      {getPlayerName(
-                        point.serverId
-                      )}
+                      {getPlayerName(point.serverId)}
                     </span>
 
                     <span>
-                      Winner:{" "}
-                      {point.winningTeam}
+                      Winner: {point.winningTeam}
                     </span>
 
                     <span>
@@ -1424,6 +1466,181 @@ function App() {
                         )}`
                         : ""}
                     </span>
+
+                    {editingPointId === point.id ? (
+                      <div className="point-edit-controls">
+
+                        <div className="point-edit-group">
+                          <span>Winner</span>
+
+                          <div className="button-group">
+                            <button
+                              className={
+                                editWinningTeam === "Team 1"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => {
+                                setEditWinningTeam("Team 1")
+                                setEditResponsiblePlayerId(null)
+                              }}
+                            >
+                              Team 1
+                            </button>
+
+                            <button
+                              className={
+                                editWinningTeam === "Team 2"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => {
+                                setEditWinningTeam("Team 2")
+                                setEditResponsiblePlayerId(null)
+                              }}
+                            >
+                              Team 2
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="point-edit-group">
+                          <span>Outcome</span>
+
+                          <div className="button-group">
+                            <button
+                              className={
+                                editPointOutcome === "Kill"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => {
+                                setEditPointOutcome("Kill")
+                                setEditResponsiblePlayerId(null)
+                              }}
+                            >
+                              Kill
+                            </button>
+
+                            <button
+                              className={
+                                editPointOutcome === "Offensive Error"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => {
+                                setEditPointOutcome("Offensive Error")
+                                setEditResponsiblePlayerId(null)
+                              }}
+                            >
+                              Offensive Error
+                            </button>
+
+                            <button
+                              className={
+                                editPointOutcome === "Other"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => {
+                                setEditPointOutcome("Other")
+                                setEditResponsiblePlayerId(null)
+                              }}
+                            >
+                              Other
+                            </button>
+                          </div>
+                        </div>
+
+                        {editPointOutcome === "Kill" && (
+                          <div className="point-edit-group">
+                            <span>Who got the kill?</span>
+
+                            <div className="button-group">
+                              {players
+                                .filter(
+                                  (player) =>
+                                    getPlayerTeam(player.id) ===
+                                    editWinningTeam
+                                )
+                                .map((player) => (
+                                  <button
+                                    key={player.id}
+                                    className={
+                                      editResponsiblePlayerId === player.id
+                                        ? "selected-button"
+                                        : ""
+                                    }
+                                    onClick={() =>
+                                      setEditResponsiblePlayerId(
+                                        player.id
+                                      )
+                                    }
+                                  >
+                                    {player.name}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {editPointOutcome === "Offensive Error" && (
+                          <div className="point-edit-group">
+                            <span>Who made the offensive error?</span>
+
+                            <div className="button-group">
+                              {players
+                                .filter(
+                                  (player) =>
+                                    getPlayerTeam(player.id) !==
+                                    editWinningTeam
+                                )
+                                .map((player) => (
+                                  <button
+                                    key={player.id}
+                                    className={
+                                      editResponsiblePlayerId === player.id
+                                        ? "selected-button"
+                                        : ""
+                                    }
+                                    onClick={() =>
+                                      setEditResponsiblePlayerId(
+                                        player.id
+                                      )
+                                    }
+                                  >
+                                    {player.name}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="point-edit-actions">
+                          <button
+                            onClick={cancelPointEdit}
+                          >
+                            Cancel
+                          </button>
+
+                          <button
+                            className="save-edit-button"
+                            onClick={savePointEdit}
+                          >
+                            Save Changes
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className="edit-point-button"
+                        onClick={() =>
+                          startEditingPoint(point)
+                        }
+                      >
+                        Edit
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
