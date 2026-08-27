@@ -259,7 +259,7 @@ function App() {
     if (editingServeId === null) {
       return
     }
-    
+
     const editedServeFields = {
       hand: editHand,
       type: editServeType,
@@ -283,6 +283,11 @@ function App() {
       ...editedServeFields
     }
 
+    const becomesDoubleFault =
+      updatedServe.serveAttempt === 2 &&
+      editServeStatus === "Fault" &&
+      editPlayedThrough === false
+
     // Is this serve part of the unfinished current point?
     const isInCurrentPoint = currentPointServes.some(
       (serve) => serve.id === editingServeId
@@ -294,6 +299,15 @@ function App() {
         (serve) => serve.id === editingServeId
       )
     )
+
+    const stopsBeingAce =
+      containingPoint?.outcome === "Ace" &&
+      editServeStatus === "Legal" &&
+      editServeResult === "Returned"
+
+    const stopsBeingDoubleFault =
+      containingPoint?.outcome === "Double Fault" &&
+      !becomesDoubleFault
 
     const latestPoint =
       points.length > 0
@@ -312,7 +326,11 @@ function App() {
 
     if (
       containingPoint &&
-      becomesUnplayedFirstServeFault &&
+      (
+        becomesUnplayedFirstServeFault ||
+        stopsBeingAce ||
+        stopsBeingDoubleFault
+      ) &&
       !isLatestPoint
     ) {
       alert(
@@ -322,6 +340,14 @@ function App() {
     }
 
     saveSnapshot()
+
+    setServes((currentServes) =>
+      currentServes.map((serve) =>
+        serve.id === editingServeId
+          ? updatedServe
+          : serve
+      )
+    )
 
     if (
       containingPoint &&
@@ -385,6 +411,112 @@ function App() {
       updatedCurrentPointServes
     )
 
+    if (
+      containingPoint &&
+      stopsBeingAce
+    ) {
+      // Update the serve in the master serve history
+      setServes((currentServes) =>
+        currentServes.map((serve) =>
+          serve.id === editingServeId
+            ? updatedServe
+            : serve
+        )
+      )
+
+      // Remove the old completed Ace point
+      setPoints((currentPoints) =>
+        currentPoints.filter(
+          (point) =>
+            point.id !== containingPoint.id
+        )
+      )
+
+      // Reopen the point with the edited returned serve
+      setCurrentPointServes(
+        containingPoint.serves.map((serve) =>
+          serve.id === editingServeId
+            ? updatedServe
+            : serve
+        )
+      )
+
+      // Restore the server for the reopened point
+      setSelectedPlayerId(
+        containingPoint.serverId
+      )
+
+      // These can start clean
+      setSelectedHand("None")
+      setSelectedServeType("None")
+      setServeStatus(null)
+      setSelectedFaultType(null)
+
+      // Clear any point-outcome workflow
+      setPendingWinningTeam(null)
+      setPendingOutcome(null)
+
+      // Close edit mode
+      setEditingServeId(null)
+      setEditHand("None")
+      setEditServeType("None")
+      setEditServeStatus(null)
+      setEditFaultType(null)
+      setEditPlayedThrough(null)
+      setEditServeResult(null)
+
+      return
+    }
+
+    if (
+      containingPoint &&
+      stopsBeingDoubleFault
+    ) {
+      // Rebuild the original point's serves with
+      // the edited second serve.
+      const reopenedServes =
+        containingPoint.serves.map((serve) =>
+          serve.id === editingServeId
+            ? updatedServe
+            : serve
+        )
+
+      // Remove the old Double Fault point.
+      setPoints((currentPoints) =>
+        currentPoints.filter(
+          (point) =>
+            point.id !== containingPoint.id
+        )
+      )
+
+      // These serves now belong to an unfinished point.
+      setCurrentPointServes(reopenedServes)
+
+      // Restore the original server.
+      setSelectedPlayerId(
+        containingPoint.serverId
+      )
+
+      setSelectedHand("None")
+      setSelectedServeType("None")
+      setServeStatus(null)
+      setSelectedFaultType(null)
+
+      setPendingWinningTeam(null)
+      setPendingOutcome(null)
+
+      // Close editor.
+      setEditingServeId(null)
+      setEditHand("None")
+      setEditServeType("None")
+      setEditServeStatus(null)
+      setEditFaultType(null)
+      setEditPlayedThrough(null)
+      setEditServeResult(null)
+
+      return
+    }
+
     // --------------------------------
     // CASE 1:
     // SERVE IS INSIDE COMPLETED POINT
@@ -406,6 +538,24 @@ function App() {
                 }
                 : serve
             )
+
+          if (becomesDoubleFault) {
+            const servingTeam =
+              getPlayerTeam(originalServe.playerId)
+
+            const receivingTeam =
+              servingTeam === "Team 1"
+                ? "Team 2"
+                : "Team 1"
+
+            return {
+              ...point,
+              serves: updatedPointServes,
+              winningTeam: receivingTeam,
+              outcome: "Double Fault",
+              responsiblePlayerId: null
+            }
+          }
 
           // Edited serve is now an Ace
           if (
@@ -466,6 +616,46 @@ function App() {
 
       // Ace completes the point
       setCurrentPointServes([])
+    }
+
+    if (
+      isInCurrentPoint &&
+      becomesDoubleFault
+    ) {
+      const servingTeam =
+        getPlayerTeam(originalServe.playerId)
+
+      const receivingTeam =
+        servingTeam === "Team 1"
+          ? "Team 2"
+          : "Team 1"
+
+      const updatedCurrentPointServes =
+        currentPointServes.map((serve) =>
+          serve.id === editingServeId
+            ? updatedServe
+            : serve
+        )
+
+      const newPoint = {
+        id: crypto.randomUUID(),
+        serverId: updatedCurrentPointServes[0].playerId,
+        serves: updatedCurrentPointServes,
+        winningTeam: receivingTeam,
+        outcome: "Double Fault",
+        responsiblePlayerId: null
+      }
+
+      setPoints((currentPoints) => [
+        ...currentPoints,
+        newPoint
+      ])
+
+      setCurrentPointServes([])
+
+      setSelectedPlayerId(null)
+      setSelectedHand("None")
+      setSelectedServeType("None")
     }
 
     // --------------------------------
