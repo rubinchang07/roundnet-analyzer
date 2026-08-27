@@ -337,32 +337,50 @@ button:disabled {
 
 .history-item {
   width: 100%;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-jump-button {
+  flex: 1;
+  min-width: 0;
+
+  padding: 0;
+  border: none;
+  background: transparent;
 
   text-align: left;
-
-  padding: 12px;
-
-  border: 1px solid #e5e7eb;
-  border-bottom: 2px solid #1f2937;
-
-  border-radius: 8px;
-
-  background: #f9fafb;
 
   display: grid;
   gap: 4px;
 }
 
-.history-item:hover {
-  background: #fffdf2;
-  border-color: #d6b400;
-}
-
-.history-item span {
+.history-jump-button span {
   color: #6b7280;
   font-size: 0.9rem;
 }
 
+.edit-serve-button {
+  flex-shrink: 0;
+
+  padding: 6px 12px;
+
+  border: 1px solid #cbd5e1;
+  border-bottom: 2px solid #1f2937;
+  border-radius: 7px;
+
+  background: white;
+  color: #1f2937;
+
+  font-weight: 600;
+}
 
 /* ========================================
    POINT HISTORY
@@ -679,4 +697,41 @@ button:disabled {
 .undo-button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.serve-edit-controls {
+  flex: 1;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-left: 2px solid #ffd400;
+}
+
+.serve-edit-group {
+  display: grid;
+  gap: 6px;
+}
+
+.serve-edit-group > span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.serve-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.serve-edit-actions button {
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: white;
+}
+
+.serve-edit-actions .save-edit-button {
+  border-bottom: 2px solid #1f2937;
+  font-weight: 600;
 }

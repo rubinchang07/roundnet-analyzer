@@ -90,6 +90,10 @@ function App() {
 
   const [actionHistory, setActionHistory] = useState([])
 
+  const [editingServeId, setEditingServeId] = useState(null)
+  const [editHand, setEditHand] = useState("None")
+  const [editServeType, setEditServeType] = useState("None")
+
   useEffect(() => {
     const matchData = {
       players,
@@ -220,6 +224,65 @@ function App() {
 
     setPendingWinningTeam(null)
     setPendingOutcome(null)
+  }
+
+  function startEditingServe(serve) {
+    setEditingServeId(serve.id)
+    setEditHand(serve.hand)
+    setEditServeType(serve.type)
+  }
+
+  function saveServeEdit() {
+    saveSnapshot()
+
+    setServes((currentServes) =>
+      currentServes.map((serves) =>
+        serves.id === editingServeId
+          ? {
+            ...serves,
+            hand: editHand,
+            type: editServeType
+          }
+          : serves
+      )
+    )
+
+    setCurrentPointServes((currentPointServes) =>
+      currentPointServes.map((serves) =>
+        serves.id === editingServeId
+          ? {
+            ...serves,
+            hand: editHand,
+            type: editServeType
+          }
+          : serves
+      )
+    )
+
+    setPoints((currentPoints) =>
+      currentPoints.map((point) => ({
+        ...point,
+        serves: point.serves.map((serve) =>
+          serve.id === editingServeId
+            ? {
+              ...serve,
+              hand: editHand,
+              type: editServeType
+            }
+            : serve
+        )
+      }))
+    )
+
+    setEditingServeId(null)
+    setEditHand("None")
+    setEditServeType("None")
+  }
+
+  function cancelServeEdit() {
+    setEditingServeId(null)
+    setEditHand("None")
+    setEditServeType("None")
   }
 
   function undoLastAction() {
@@ -1212,49 +1275,111 @@ function App() {
             ) : (
               <div className="history-list">
                 {serves.map((serve, index) => (
-                  <button
+                  <div
                     className="history-item"
                     key={serve.id}
-                    onClick={() =>
-                      jumpToTimestamp(
-                        serve.timestamp
-                      )
-                    }
                   >
-                    <strong>
-                      #{index + 1} ·{" "}
-                      {getPlayerName(
-                        serve.playerId
-                      )}
-                    </strong>
+                    <button
+                      className="history-jump-button"
+                      onClick={() =>
+                        jumpToTimestamp(serve.timestamp)
+                      }
+                    >
+                      <strong>
+                        #{index + 1} · {getPlayerName(serve.playerId)}
+                      </strong>
 
-                    <span>
-                      Serve {serve.serveAttempt} ·{" "}
-                      {serve.hand} · {serve.type}
-                    </span>
+                      <span>
+                        Serve {serve.serveAttempt} · {serve.hand} · {serve.type}
+                      </span>
 
-                    <span>
-                      {formatTime(serve.timestamp)} ·{" "}
-                      {serve.legality}
+                      <span>
+                        {formatTime(serve.timestamp)} · {serve.legality}
+                      </span>
+                    </button>
 
-                      {serve.faultType
-                        ? ` (${serve.faultType})`
-                        : ""}
+                    {editingServeId === serve.id ? (
+                      <div className="serve-edit-controls">
+                        <div className="serve-edit-group">
+                          <span>Hand</span>
 
-                      {serve.playedThrough === true
-                        ? " · Played Through"
-                        : ""}
+                          <div className="button-group">
+                            <button
+                              className={
+                                editHand === "Left"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => setEditHand("Left")}
+                            >
+                              Left
+                            </button>
 
-                      {serve.playedThrough === false
-                        ? " · Not Played"
-                        : ""}
+                            <button
+                              className={
+                                editHand === "Right"
+                                  ? "selected-button"
+                                  : ""
+                              }
+                              onClick={() => setEditHand("Right")}
+                            >
+                              Right
+                            </button>
+                          </div>
+                        </div>
 
-                      {serve.result &&
-                        serve.result !== "Fault"
-                        ? ` · ${serve.result}`
-                        : ""}
-                    </span>
-                  </button>
+                        <div className="serve-edit-group">
+                          <span>Serve Type</span>
+
+                          <div className="button-group">
+                            {[
+                              "Cut",
+                              "Reverse",
+                              "Jam",
+                              "Drop",
+                              "Tap-on"
+                            ].map((type) => (
+                              <button
+                                key={type}
+                                className={
+                                  editServeType === type
+                                    ? "selected-button"
+                                    : ""
+                                }
+                                onClick={() =>
+                                  setEditServeType(type)
+                                }
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="serve-edit-actions">
+                          <button onClick={cancelServeEdit}>
+                            Cancel
+                          </button>
+
+                          <button
+                            className="save-edit-button"
+                            onClick={saveServeEdit}
+                          >
+                            Save Changes
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className="edit-serve-button"
+                        onClick={() =>
+                          startEditingServe(serve)
+                        }
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
