@@ -131,7 +131,7 @@ button {
 }
 
 .video-placeholder {
-  min-height: 420px;
+  min-height: 320px;
 
   display: grid;
   place-items: center;
@@ -140,6 +140,43 @@ button {
   background: #f9fafb;
 
   border-radius: 8px;
+}
+
+.video-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #667085;
+  text-align: center;
+}
+
+.video-placeholder-content strong {
+  color: #344054;
+  font-size: 1rem;
+}
+
+.video-placeholder-content span {
+  font-size: 0.9rem;
+}
+
+.video-placeholder-icon {
+  font-size: 1.5rem;
+  color: #ffd400;
+  margin-bottom: 2px;
+}
+
+.video-upload-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.video-upload-header span {
+  font-size: 0.8rem;
+  color: #667085;
 }
 
 
@@ -654,9 +691,11 @@ button:disabled {
    RESPONSIVE
 ======================================== */
 
-@media (max-width: 900px) {
+@media (max-width: 800px) {
+  .analyzer-grid {
+    grid-template-columns: 1fr;
+  }
 
-  .analyzer-grid,
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -670,11 +709,20 @@ button:disabled {
   }
 }
 
-.match-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-bottom: 18px;
+@media (max-width: 600px) {
+  .match-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .match-action-group,
+  .export-actions {
+    width: 100%;
+  }
+
+  .export-buttons {
+    flex-wrap: wrap;
+  }
 }
 
 .undo-button,
@@ -876,4 +924,47 @@ button:disabled {
 .edit-point-button:hover {
   background: #fffdf2;
   border-color: #d6b400;
+}
+
+.match-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.match-action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.export-label {
+  font-weight: 600;
+}
+
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.new-match-button {
+  border-color: #b42318;
+}
+
+.new-match-button:hover {
+  background: #fff1f0;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

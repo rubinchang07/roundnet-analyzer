@@ -190,6 +190,11 @@ function App() {
   }
 
   function startNewMatch() {
+    const confirmed = window.confirm(
+      "Start a new match? Your current match data will be cleared."
+    )
+
+    if (!confirmed) return
     const hasMatchData =
       serves.length > 0 ||
       points.length > 0 ||
@@ -1357,9 +1362,11 @@ function App() {
 
       <main className="app-main">
         <section className="upload-card">
-          <label className="upload-label">
-            Match Video
-          </label>
+
+          <div className="video-upload-header">
+            <strong>Match Video</strong>
+            <span>Upload a local video file. Your video stays on this device.</span>
+          </div>
 
           <input
             type="file"
@@ -1379,7 +1386,11 @@ function App() {
               />
             ) : (
               <div className="video-placeholder">
-                Upload a match to begin analyzing.
+                <div className="video-placeholder-content">
+                  <div className="video-placeholder-icon">▶</div>
+                  <strong>No match video loaded</strong>
+                  <span>Upload match footage above to begin analyzing.</span>
+                </div>
               </div>
             )}
           </div>
@@ -1387,32 +1398,48 @@ function App() {
           <aside className="controls-panel">
 
             <div className="match-actions">
-              <button
-                className="undo-button"
-                onClick={undoLastAction}
-                disabled={actionHistory.length === 0}
-              >
-                Undo Last Action
-              </button>
+              <div className="match-action-group">
+                <button
+                  onClick={undoLastAction}
+                  disabled={actionHistory.length === 0}
+                >
+                  Undo Last Action
+                </button>
 
-              <button
-                className="new-match-button"
-                onClick={startNewMatch}
-              >
-                Start New Match
-              </button>
+                <button
+                  onClick={startNewMatch}
+                  className="new-match-button"
+                >
+                  Start New Match
+                </button>
+              </div>
 
-              <button onClick={exportMatchJSON}>
-                Export JSON
-              </button>
+              <div className="export-actions">
+                <span className="export-label">Export Data</span>
 
-              <button onClick={exportServesCSV}>
-                Export Serves CSV
-              </button>
+                <div className="export-buttons">
+                  <button
+                    onClick={exportMatchJSON}
+                    disabled={serves.length === 0 && points.length === 0}
+                  >
+                    JSON
+                  </button>
 
-              <button onClick={exportPointsCSV}>
-                Export Points CSV
-              </button>
+                  <button
+                    onClick={exportServesCSV}
+                    disabled={serves.length === 0}
+                  >
+                    Serves CSV
+                  </button>
+
+                  <button
+                    onClick={exportPointsCSV}
+                    disabled={points.length === 0}
+                  >
+                    Points CSV
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* PLAYERS */}
