@@ -947,6 +947,145 @@ function App() {
     )
   }
 
+  function exportMatchJSON() {
+    const matchData = {
+      exportedAt: new Date().toISOString(),
+      players,
+      teams,
+      serves,
+      points
+    }
+
+    const json = JSON.stringify(
+      matchData,
+      null,
+      2
+    )
+
+    // create Blob
+    const blob = new Blob(
+      [json],
+      { type: "application/json" }
+    )
+    // create temporary URL
+    const url = URL.createObjectURL(blob)
+    // create link
+    const link = document.createElement("a")
+    link.href = url
+    // trigger download
+    link.download = "roundnet-match.json"
+    link.click()
+    // clean up URL
+    URL.revokeObjectURL(url)
+  }
+
+  function exportServesCSV() {
+    const headers = [
+      "Serve Number",
+      "Timestamp",
+      "Player ID",
+      "Player Name",
+      "Team",
+      "Hand",
+      "Serve Type",
+      "Serve Attempt",
+      "Legality",
+      "Fault Type",
+      "Played Through",
+      "Result"
+    ]
+
+    const rows = serves.map((serve, index) => [
+      index + 1,
+      serve.timestamp,
+      serve.playerId,
+      getPlayerName(serve.playerId),
+      getPlayerTeam(serve.playerId),
+      serve.hand,
+      serve.type,
+      serve.serveAttempt,
+      serve.legality,
+      serve.faultType ?? "",
+      serve.playedThrough ?? "",
+      serve.result ?? ""
+    ])
+
+    const csv = [
+      headers,
+      ...rows
+    ]
+      .map(row => row.map(escapeCSVValue).join(","))
+      .join("\n")
+
+    const blob = new Blob(
+      [csv],
+      { type: "text/csv;charset=utf-8;" }
+    )
+
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "roundnet-serves.csv"
+    link.click()
+
+    URL.revokeObjectURL(url)
+  }
+
+  function exportPointsCSV() {
+    const headers = [
+      "Point Number",
+      "Server ID",
+      "Server Name",
+      "Serving Team",
+      "Winning Team",
+      "Outcome",
+      "Responsible Player ID",
+      "Responsible Player Name",
+      "Number of Serves"
+    ]
+
+    // create rows
+    const rows = points.map((point, index) => [
+      index + 1,
+      point.serverId,
+      getPlayerName(point.serverId),
+      getPlayerTeam(point.serverId),
+      point.winningTeam,
+      point.outcome,
+      point.responsiblePlayerId ?? "",
+      point.responsiblePlayerId
+        ? getPlayerName(point.responsiblePlayerId)
+        : "",
+      point.serves.length
+    ])
+    // create CSV from headers + rows
+    const csv = [
+      headers,
+      ...rows
+    ]
+      .map(row => row.map(escapeCSVValue).join(","))
+      .join("\n")
+    const blob = new Blob(
+      [csv],
+      { type: "text/csv;charset=utf-8;" }
+    )
+
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "roundnet-points.csv"
+    link.click()
+
+    URL.revokeObjectURL(url)
+  }
+
+  function escapeCSVValue(value) {
+    const stringValue = String(value ?? "")
+    return `"${stringValue.replaceAll('"', '""')}"`
+  }
+
   // -----------------------------
   // Current rally state
   // -----------------------------
@@ -1261,6 +1400,18 @@ function App() {
                 onClick={startNewMatch}
               >
                 Start New Match
+              </button>
+
+              <button onClick={exportMatchJSON}>
+                Export JSON
+              </button>
+
+              <button onClick={exportServesCSV}>
+                Export Serves CSV
+              </button>
+
+              <button onClick={exportPointsCSV}>
+                Export Points CSV
               </button>
             </div>
 
