@@ -321,6 +321,14 @@ button.selected-button {
   border-bottom: 3px solid #ffd400;
 }
 
+/* Keep a hovered selected button readable */
+.button-group button.selected-button:hover,
+.controls-panel button.selected-button:hover {
+  background: #1f2937;
+  border-color: #111827;
+  border-bottom-color: #ffd400;
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
@@ -1094,4 +1102,37 @@ button:disabled {
 
 .delete-button:hover {
   background: #fff1f0;
+}
+
+.stats-filter {
+  margin-bottom: 20px;
+}
+
+.replay-note {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.replayed-serve {
+  opacity: 0.55;
+}
+
+.shortcut-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+}
+
+.shortcut-list kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85em;
+  text-align: center;
 }
