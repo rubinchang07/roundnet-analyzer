@@ -29,7 +29,7 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 
 ### Comprehensive Serve Tracking
 
-- **Serve Parameters:** Track server, serving hand (left/right), serve type, and attempt number (first/second serve).
+- **Serve Parameters:** Track server, receiver, serving hand (left/right), serve type, and attempt number (first/second serve).
 - **Outcome Logging:** Record legal serves, faults by type, played-through faults, aces, and returned serves.
 - **Automatic Double-Fault Detection:** Detect second-serve faults and automatically resolve double-fault points.
 
@@ -38,12 +38,14 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 - **Point Outcomes:** Record point winners, kills, offensive errors, and other point outcomes.
 - **Player Attribution:** Attribute kills and offensive errors to individual players.
 - **Automatic Resolution:** Automatically resolve point state for aces and double faults.
+- **Rally Touches:** Tag defensive touches, sets, and far sets during a rally, attributed to individual players.
+- **Match & Game Info:** Record the date played and the game number; each point is stamped with its game so one export can hold a full match.
 
 ### Match Analytics
 
 - **Match Statistics:** Track total serves, serve legality, fault rate, aces, double faults, and first- and second-serve legality.
 - **Team Statistics:** Calculate points won, hold percentage, break percentage, aces, and double faults.
-- **Player Statistics:** Track serving-point win percentage, serve legality, aces, kills, offensive errors, and other individual metrics.
+- **Player Statistics:** Track serving-point win percentage, serve legality, aces, kills, offensive errors, defensive touches, sets, far sets, times aced, and who aced whom.
 - **Expandable Statistics:** View additional player- and team-level breakdowns.
 
 ### Editing & Match Management
@@ -55,6 +57,16 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 - **Persistent Match State:** Save match analysis data in browser `localStorage` between refreshes.
 - **New Match Reset:** Clear the current match and begin a new analysis.
 - **Data Export:** Export complete match data as JSON and serve- or point-level datasets as CSV.
+
+### JSON Export Format (v2)
+
+The JSON export only adds fields to the original layout, so older readers keep working.
+
+- `formatVersion`: `2`.
+- `match`: `{ "id": "<uuid>", "playedOn": "YYYY-MM-DD" | null }`. The id is generated per match and changes on Start New Match.
+- `serves[].receiverId`: the receiving player's id, or `null` when not tagged.
+- `points[].gameNumber`: the game the point was played in (defaults to `1`).
+- `points[].rally`: rally touches in order, each `{ "id", "timestamp", "playerId", "type" }` where `type` is `"Defensive Touch"`, `"Set"`, or `"Far Set"`. Aces and double faults have an empty list.
 
 ---
 

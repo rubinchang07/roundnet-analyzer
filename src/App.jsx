@@ -15,6 +15,14 @@ function loadSavedMatch() {
   }
 }
 
+const TOUCH_TYPES = [
+  "Defensive Touch",
+  "Set",
+  "Far Set"
+]
+
+const EXPORT_FORMAT_VERSION = 2
+
 function App() {
   const videoRef = useRef(null)
 
@@ -36,6 +44,17 @@ function App() {
   )
 
   const [selectedPlayerId, setSelectedPlayerId] = useState(null)
+  const [selectedReceiverId, setSelectedReceiverId] = useState(null)
+
+  const [matchId, setMatchId] = useState(
+    savedMatch?.matchId ?? crypto.randomUUID()
+  )
+  const [playedOn, setPlayedOn] = useState(
+    savedMatch?.playedOn ?? ""
+  )
+  const [gameNumber, setGameNumber] = useState(
+    savedMatch?.gameNumber ?? 1
+  )
 
   const teams = [
     ["player-1", "player-2"],
@@ -47,6 +66,20 @@ function App() {
       players.find((player) => player.id === playerId)?.name ??
       "Unknown Player"
     )
+  }
+
+  function getOpponentIds(playerId) {
+    const team = getPlayerTeam(playerId)
+
+    if (team === "Team 1") {
+      return teams[1]
+    }
+
+    if (team === "Team 2") {
+      return teams[0]
+    }
+
+    return []
   }
 
   function getPlayerTeam(playerId) {
@@ -77,6 +110,11 @@ function App() {
     savedMatch?.currentPointServes ?? []
   )
 
+  const [currentPointRally, setCurrentPointRally] = useState(
+    savedMatch?.currentPointRally ?? []
+  )
+  const [selectedTouchType, setSelectedTouchType] = useState(null)
+
   const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
   const [pendingOutcome, setPendingOutcome] = useState(null)
 
@@ -88,16 +126,22 @@ function App() {
       ? currentPointServes[0].playerId
       : null
 
+  const currentPointReceiverId =
+    currentPointServes.find((serve) => serve.receiverId)
+      ?.receiverId ?? null
+
   const [actionHistory, setActionHistory] = useState([])
 
   const [editingServeId, setEditingServeId] = useState(null)
   const [editHand, setEditHand] = useState("None")
   const [editServeType, setEditServeType] = useState("None")
+  const [editReceiverId, setEditReceiverId] = useState(null)
 
   const [editingPointId, setEditingPointId] = useState(null)
   const [editWinningTeam, setEditWinningTeam] = useState(null)
   const [editPointOutcome, setEditPointOutcome] = useState(null)
   const [editResponsiblePlayerId, setEditResponsiblePlayerId] = useState(null)
+  const [editRally, setEditRally] = useState([])
 
   const [editServeStatus, setEditServeStatus] = useState(null)
   const [editFaultType, setEditFaultType] = useState(null)
@@ -106,10 +150,14 @@ function App() {
 
   useEffect(() => {
     const matchData = {
+      matchId,
+      playedOn,
+      gameNumber,
       players,
       serves,
       points,
-      currentPointServes
+      currentPointServes,
+      currentPointRally
     }
 
     localStorage.setItem(
@@ -117,10 +165,14 @@ function App() {
       JSON.stringify(matchData)
     )
   }, [
+    matchId,
+    playedOn,
+    gameNumber,
     players,
     serves,
     points,
-    currentPointServes
+    currentPointServes,
+    currentPointRally
   ])
 
   // -----------------------------
@@ -217,20 +269,28 @@ function App() {
       }))
     )
 
-    // 2. Clear serves
+    // 2. New match identity
+    setMatchId(crypto.randomUUID())
+    setPlayedOn("")
+    setGameNumber(1)
+
+    // 3. Clear serves
     setServes([])
 
-    // 3. Clear points
+    // 4. Clear points
     setPoints([])
 
-    // 4. Clear current point
+    // 5. Clear current point
     setCurrentPointServes([])
+    setCurrentPointRally([])
 
-    // 5. Clear undo history
+    // 6. Clear undo history
     setActionHistory([])
 
-    // 6. Reset temporary selections
+    // 7. Reset temporary selections
     setSelectedPlayerId(null)
+    setSelectedReceiverId(null)
+    setSelectedTouchType(null)
     setSelectedHand("None")
     setSelectedServeType("None")
 
@@ -246,6 +306,7 @@ function App() {
 
     setEditHand(serve.hand)
     setEditServeType(serve.type)
+    setEditReceiverId(serve.receiverId ?? null)
 
     setEditServeStatus(serve.legality)
     setEditFaultType(serve.faultType)
@@ -258,6 +319,7 @@ function App() {
     setEditWinningTeam(points.winningTeam)
     setEditPointOutcome(points.outcome)
     setEditResponsiblePlayerId(points.responsiblePlayerId)
+    setEditRally(points.rally ?? [])
   }
 
   function saveServeEdit() {
@@ -268,6 +330,7 @@ function App() {
     const editedServeFields = {
       hand: editHand,
       type: editServeType,
+      receiverId: editReceiverId,
       legality: editServeStatus,
       faultType: editFaultType,
       playedThrough: editPlayedThrough,
@@ -379,6 +442,7 @@ function App() {
       setCurrentPointServes([
         updatedServe
       ])
+      setCurrentPointRally([])
 
       // Restore the original server
       setSelectedPlayerId(updatedServe.playerId)
@@ -446,6 +510,8 @@ function App() {
         )
       )
 
+      setCurrentPointRally(containingPoint.rally ?? [])
+
       // Restore the server for the reopened point
       setSelectedPlayerId(
         containingPoint.serverId
@@ -496,6 +562,7 @@ function App() {
 
       // These serves now belong to an unfinished point.
       setCurrentPointServes(reopenedServes)
+      setCurrentPointRally(containingPoint.rally ?? [])
 
       // Restore the original server.
       setSelectedPlayerId(
@@ -558,7 +625,8 @@ function App() {
               serves: updatedPointServes,
               winningTeam: receivingTeam,
               outcome: "Double Fault",
-              responsiblePlayerId: null
+              responsiblePlayerId: null,
+              rally: []
             }
           }
 
@@ -577,7 +645,8 @@ function App() {
               serves: updatedPointServes,
               winningTeam: servingTeam,
               outcome: "Ace",
-              responsiblePlayerId: null
+              responsiblePlayerId: null,
+              rally: []
             }
           }
 
@@ -609,9 +678,11 @@ function App() {
         serverId:
           updatedCurrentPointServes[0].playerId,
         serves: updatedCurrentPointServes,
+        gameNumber,
         winningTeam: servingTeam,
         outcome: "Ace",
-        responsiblePlayerId: null
+        responsiblePlayerId: null,
+        rally: []
       }
 
       setPoints((currentPoints) => [
@@ -621,6 +692,7 @@ function App() {
 
       // Ace completes the point
       setCurrentPointServes([])
+      setCurrentPointRally([])
     }
 
     if (
@@ -646,9 +718,11 @@ function App() {
         id: crypto.randomUUID(),
         serverId: updatedCurrentPointServes[0].playerId,
         serves: updatedCurrentPointServes,
+        gameNumber,
         winningTeam: receivingTeam,
         outcome: "Double Fault",
-        responsiblePlayerId: null
+        responsiblePlayerId: null,
+        rally: []
       }
 
       setPoints((currentPoints) => [
@@ -657,8 +731,10 @@ function App() {
       ])
 
       setCurrentPointServes([])
+      setCurrentPointRally([])
 
       setSelectedPlayerId(null)
+      setSelectedReceiverId(null)
       setSelectedHand("None")
       setSelectedServeType("None")
     }
@@ -670,6 +746,7 @@ function App() {
     setEditingServeId(null)
     setEditHand("None")
     setEditServeType("None")
+    setEditReceiverId(null)
 
     setEditServeStatus(null)
     setEditFaultType(null)
@@ -691,7 +768,8 @@ function App() {
             ...point,
             winningTeam: editWinningTeam,
             outcome: editPointOutcome,
-            responsiblePlayerId: editResponsiblePlayerId
+            responsiblePlayerId: editResponsiblePlayerId,
+            rally: editRally
           }
           : point
       )
@@ -701,6 +779,7 @@ function App() {
     setEditWinningTeam(null)
     setEditPointOutcome(null)
     setEditResponsiblePlayerId(null)
+    setEditRally([])
   }
 
   function cancelServeEdit() {
@@ -708,6 +787,7 @@ function App() {
 
     setEditHand("None")
     setEditServeType("None")
+    setEditReceiverId(null)
 
     setEditServeStatus(null)
     setEditFaultType(null)
@@ -720,6 +800,7 @@ function App() {
     setEditWinningTeam(null)
     setEditPointOutcome(null)
     setEditResponsiblePlayerId(null)
+    setEditRally([])
   }
 
   function undoLastAction() {
@@ -731,8 +812,10 @@ function App() {
     setServes(lastSnapshot.serves)
     setPoints(lastSnapshot.points)
     setCurrentPointServes(lastSnapshot.currentPointServes)
+    setCurrentPointRally(lastSnapshot.currentPointRally ?? [])
 
     setSelectedPlayerId(lastSnapshot.selectedPlayerId)
+    setSelectedReceiverId(lastSnapshot.selectedReceiverId ?? null)
     setSelectedHand(lastSnapshot.selectedHand)
     setSelectedServeType(lastSnapshot.selectedServeType)
 
@@ -768,6 +851,7 @@ function App() {
       id: crypto.randomUUID(),
       timestamp: currentTime,
       playerId: selectedPlayerId,
+      receiverId: selectedReceiverId,
       hand: selectedHand,
       type: selectedServeType,
       serveAttempt,
@@ -808,9 +892,11 @@ function App() {
         id: crypto.randomUUID(),
         serverId: selectedPlayerId,
         serves: updatedPointServes,
+        gameNumber,
         winningTeam: servingTeam,
         outcome: "Ace",
-        responsiblePlayerId: null
+        responsiblePlayerId: null,
+        rally: []
       }
 
       setPoints([
@@ -819,11 +905,13 @@ function App() {
       ])
 
       setCurrentPointServes([])
+      setCurrentPointRally([])
 
       setPendingWinningTeam(null)
       setPendingOutcome(null)
 
       setSelectedPlayerId(null)
+      setSelectedReceiverId(null)
       setSelectedHand("None")
       setSelectedServeType("None")
 
@@ -846,9 +934,11 @@ function App() {
         id: crypto.randomUUID(),
         serverId: selectedPlayerId,
         serves: updatedPointServes,
+        gameNumber,
         winningTeam: receivingTeam,
         outcome: "Double Fault",
-        responsiblePlayerId: null
+        responsiblePlayerId: null,
+        rally: []
       }
 
       setPoints([
@@ -857,11 +947,13 @@ function App() {
       ])
 
       setCurrentPointServes([])
+      setCurrentPointRally([])
 
       setPendingWinningTeam(null)
       setPendingOutcome(null)
 
       setSelectedPlayerId(null)
+      setSelectedReceiverId(null)
       setSelectedHand("None")
       setSelectedServeType("None")
     }
@@ -872,7 +964,9 @@ function App() {
       serves,
       points,
       currentPointServes,
+      currentPointRally,
       selectedPlayerId,
+      selectedReceiverId,
       selectedHand,
       selectedServeType,
       serveStatus,
@@ -902,9 +996,11 @@ function App() {
       id: crypto.randomUUID(),
       serverId: currentPointServes[0].playerId,
       serves: currentPointServes,
+      gameNumber,
       winningTeam,
       outcome,
-      responsiblePlayerId
+      responsiblePlayerId,
+      rally: currentPointRally
     }
 
     setPoints([
@@ -913,16 +1009,73 @@ function App() {
     ])
 
     setCurrentPointServes([])
+    setCurrentPointRally([])
+    setSelectedTouchType(null)
 
     setPendingWinningTeam(null)
     setPendingOutcome(null)
 
     setSelectedPlayerId(null)
+    setSelectedReceiverId(null)
     setSelectedHand("None")
     setSelectedServeType("None")
 
     setServeStatus(null)
     setSelectedFaultType(null)
+  }
+
+  function recordTouch(playerId) {
+    if (selectedTouchType === null) {
+      return
+    }
+
+    saveSnapshot()
+
+    const newTouch = {
+      id: crypto.randomUUID(),
+      timestamp: videoRef.current?.currentTime ?? null,
+      playerId,
+      type: selectedTouchType
+    }
+
+    setCurrentPointRally([
+      ...currentPointRally,
+      newTouch
+    ])
+
+    setSelectedTouchType(null)
+  }
+
+  function removeCurrentTouch(touchId) {
+    saveSnapshot()
+
+    setCurrentPointRally(
+      currentPointRally.filter(
+        (touch) => touch.id !== touchId
+      )
+    )
+  }
+
+  function selectServer(playerId) {
+    setSelectedPlayerId(playerId)
+
+    if (
+      selectedReceiverId !== null &&
+      !getOpponentIds(playerId).includes(selectedReceiverId)
+    ) {
+      setSelectedReceiverId(null)
+    }
+  }
+
+  function summarizeRally(rally = []) {
+    return TOUCH_TYPES
+      .map((type) => [
+        type,
+        rally.filter((touch) => touch.type === type).length
+      ])
+      .filter(([, count]) => count > 0)
+      .map(([type, count]) => `${count} ${type}`)
+      .join(" · ")
   }
 
   function jumpToTimestamp(time) {
@@ -953,12 +1106,27 @@ function App() {
   }
 
   function exportMatchJSON() {
+    const exportServe = (serve) => ({
+      ...serve,
+      receiverId: serve.receiverId ?? null
+    })
+
     const matchData = {
+      formatVersion: EXPORT_FORMAT_VERSION,
       exportedAt: new Date().toISOString(),
+      match: {
+        id: matchId,
+        playedOn: playedOn || null
+      },
       players,
       teams,
-      serves,
-      points
+      serves: serves.map(exportServe),
+      points: points.map((point) => ({
+        ...point,
+        gameNumber: point.gameNumber ?? 1,
+        serves: point.serves.map(exportServe),
+        rally: point.rally ?? []
+      }))
     }
 
     const json = JSON.stringify(
@@ -991,6 +1159,8 @@ function App() {
       "Player ID",
       "Player Name",
       "Team",
+      "Receiver ID",
+      "Receiver Name",
       "Hand",
       "Serve Type",
       "Serve Attempt",
@@ -1006,6 +1176,10 @@ function App() {
       serve.playerId,
       getPlayerName(serve.playerId),
       getPlayerTeam(serve.playerId),
+      serve.receiverId ?? "",
+      serve.receiverId
+        ? getPlayerName(serve.receiverId)
+        : "",
       serve.hand,
       serve.type,
       serve.serveAttempt,
@@ -1040,6 +1214,7 @@ function App() {
   function exportPointsCSV() {
     const headers = [
       "Point Number",
+      "Game",
       "Server ID",
       "Server Name",
       "Serving Team",
@@ -1047,12 +1222,14 @@ function App() {
       "Outcome",
       "Responsible Player ID",
       "Responsible Player Name",
-      "Number of Serves"
+      "Number of Serves",
+      ...TOUCH_TYPES
     ]
 
     // create rows
     const rows = points.map((point, index) => [
       index + 1,
+      point.gameNumber ?? 1,
       point.serverId,
       getPlayerName(point.serverId),
       getPlayerTeam(point.serverId),
@@ -1062,7 +1239,13 @@ function App() {
       point.responsiblePlayerId
         ? getPlayerName(point.responsiblePlayerId)
         : "",
-      point.serves.length
+      point.serves.length,
+      ...TOUCH_TYPES.map(
+        (type) =>
+          (point.rally ?? []).filter(
+            (touch) => touch.type === type
+          ).length
+      )
     ])
     // create CSV from headers + rows
     const csv = [
@@ -1220,6 +1403,54 @@ function App() {
           point.responsiblePlayerId === player.id
       ).length
 
+      // Rally touches
+      const playerTouches = points.flatMap(
+        (point) => point.rally ?? []
+      ).filter(
+        (touch) => touch.playerId === player.id
+      )
+
+      const touchCounts = Object.fromEntries(
+        TOUCH_TYPES.map((type) => [
+          type,
+          playerTouches.filter(
+            (touch) => touch.type === type
+          ).length
+        ])
+      )
+
+      // Receiving
+      const servesReceived = serves.filter(
+        (serve) =>
+          serve.receiverId === player.id
+      )
+
+      const legalServesReceived = servesReceived.filter(
+        (serve) => serve.legality === "Legal"
+      )
+
+      const timesAced = legalServesReceived.filter(
+        (serve) => serve.result === "Ace"
+      ).length
+
+      // Who this player aced, and who aced this player
+      const acesByReceiver = {}
+      const acedByServer = {}
+
+      playerServes.forEach((serve) => {
+        if (serve.result === "Ace" && serve.receiverId) {
+          acesByReceiver[serve.receiverId] =
+            (acesByReceiver[serve.receiverId] ?? 0) + 1
+        }
+      })
+
+      legalServesReceived.forEach((serve) => {
+        if (serve.result === "Ace") {
+          acedByServer[serve.playerId] =
+            (acedByServer[serve.playerId] ?? 0) + 1
+        }
+      })
+
       // Serve breakdown
       const serveBreakdown = {}
 
@@ -1338,14 +1569,28 @@ function App() {
         secondServePointWins,
 
         kills: playerKills,
-        offensiveErrors: playerOffensiveErrors
+        offensiveErrors: playerOffensiveErrors,
+
+        defensiveTouches: touchCounts["Defensive Touch"],
+        sets: touchCounts["Set"],
+        farSets: touchCounts["Far Set"],
+
+        servesReceived: servesReceived.length,
+        legalServesReceived: legalServesReceived.length,
+        timesAced,
+        acesByReceiver,
+        acedByServer
       }
     })
     .filter(
       (stats) =>
         stats.totalServes > 0 ||
         stats.kills > 0 ||
-        stats.offensiveErrors > 0
+        stats.offensiveErrors > 0 ||
+        stats.defensiveTouches > 0 ||
+        stats.sets > 0 ||
+        stats.farSets > 0 ||
+        stats.servesReceived > 0
     )
 
   return (
@@ -1442,6 +1687,54 @@ function App() {
               </div>
             </div>
 
+            {/* MATCH */}
+
+            <div className="control-section">
+              <h2>Match</h2>
+
+              <div className="match-info">
+                <label>
+                  <span>Date Played</span>
+                  <input
+                    type="date"
+                    value={playedOn}
+                    onChange={(event) =>
+                      setPlayedOn(event.target.value)
+                    }
+                  />
+                </label>
+
+                <div className="game-number">
+                  <span>Game</span>
+
+                  <div className="button-group">
+                    <button
+                      onClick={() =>
+                        setGameNumber(gameNumber - 1)
+                      }
+                      disabled={gameNumber <= 1}
+                    >
+                      −
+                    </button>
+
+                    <strong>{gameNumber}</strong>
+
+                    <button
+                      onClick={() =>
+                        setGameNumber(gameNumber + 1)
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <p className="match-id">
+                Match ID: {matchId.slice(0, 8)}
+              </p>
+            </div>
+
             {/* PLAYERS */}
 
             <div className="control-section">
@@ -1486,9 +1779,7 @@ function App() {
                   <button
                     key={player.id}
                     onClick={() =>
-                      setSelectedPlayerId(
-                        player.id
-                      )
+                      selectServer(player.id)
                     }
                     disabled={
                       currentPointServerId !== null &&
@@ -1506,6 +1797,38 @@ function App() {
                 ))}
               </div>
             </div>
+
+            {/* RECEIVER */}
+
+            {selectedPlayerId !== null && (
+              <div className="control-section">
+                <h2>Receiver</h2>
+
+                <div className="button-group">
+                  {getOpponentIds(selectedPlayerId).map(
+                    (playerId) => (
+                      <button
+                        key={playerId}
+                        onClick={() =>
+                          setSelectedReceiverId(playerId)
+                        }
+                        disabled={
+                          currentPointReceiverId !== null &&
+                          currentPointReceiverId !== playerId
+                        }
+                        className={
+                          selectedReceiverId === playerId
+                            ? "selected-button"
+                            : ""
+                        }
+                      >
+                        {getPlayerName(playerId)}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* HAND */}
 
@@ -1729,6 +2052,78 @@ function App() {
                 </div>
               )}
 
+            {/* RALLY TOUCHES */}
+
+            {rallyStarted && (
+              <div className="control-section">
+                <h2>Rally Touches</h2>
+
+                <div className="button-group">
+                  {TOUCH_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      className={
+                        selectedTouchType === type
+                          ? "selected-button"
+                          : ""
+                      }
+                      onClick={() =>
+                        setSelectedTouchType(
+                          selectedTouchType === type
+                            ? null
+                            : type
+                        )
+                      }
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+
+                {selectedTouchType && (
+                  <div className="touch-player-picker">
+                    <span>Who made the {selectedTouchType.toLowerCase()}?</span>
+
+                    <div className="button-group">
+                      {players.map((player) => (
+                        <button
+                          key={player.id}
+                          onClick={() =>
+                            recordTouch(player.id)
+                          }
+                        >
+                          {player.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {currentPointRally.length > 0 && (
+                  <ul className="touch-list">
+                    {currentPointRally.map((touch) => (
+                      <li key={touch.id}>
+                        <span>
+                          {touch.type} · {getPlayerName(touch.playerId)}
+                          {touch.timestamp !== null
+                            ? ` · ${formatTime(touch.timestamp)}`
+                            : ""}
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            removeCurrentTouch(touch.id)
+                          }
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
             {/* POINT WINNER */}
 
             {rallyStarted &&
@@ -1897,6 +2292,9 @@ function App() {
                     >
                       <strong>
                         #{index + 1} · {getPlayerName(serve.playerId)}
+                        {serve.receiverId
+                          ? ` → ${getPlayerName(serve.receiverId)}`
+                          : ""}
                       </strong>
 
                       <span>
@@ -1910,6 +2308,34 @@ function App() {
 
                     {editingServeId === serve.id ? (
                       <div className="serve-edit-controls">
+                        <div className="serve-edit-group">
+                          <span>Receiver</span>
+
+                          <div className="button-group">
+                            {getOpponentIds(serve.playerId).map(
+                              (playerId) => (
+                                <button
+                                  key={playerId}
+                                  className={
+                                    editReceiverId === playerId
+                                      ? "selected-button"
+                                      : ""
+                                  }
+                                  onClick={() =>
+                                    setEditReceiverId(
+                                      editReceiverId === playerId
+                                        ? null
+                                        : playerId
+                                    )
+                                  }
+                                >
+                                  {getPlayerName(playerId)}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </div>
+
                         <div className="serve-edit-group">
                           <span>Hand</span>
 
@@ -2156,7 +2582,7 @@ function App() {
                     key={point.id}
                   >
                     <strong>
-                      Point {index + 1}
+                      Point {index + 1} · Game {point.gameNumber ?? 1}
                     </strong>
 
                     <span>
@@ -2177,6 +2603,12 @@ function App() {
                         )}`
                         : ""}
                     </span>
+
+                    {(point.rally ?? []).length > 0 && (
+                      <span>
+                        {summarizeRally(point.rally)}
+                      </span>
+                    )}
 
                     {editingPointId === point.id ? (
                       <div className="point-edit-controls">
@@ -2324,6 +2756,35 @@ function App() {
                                   </button>
                                 ))}
                             </div>
+                          </div>
+                        )}
+
+                        {editRally.length > 0 && (
+                          <div className="point-edit-group">
+                            <span>Rally Touches</span>
+
+                            <ul className="touch-list">
+                              {editRally.map((touch) => (
+                                <li key={touch.id}>
+                                  <span>
+                                    {touch.type} · {getPlayerName(touch.playerId)}
+                                  </span>
+
+                                  <button
+                                    onClick={() =>
+                                      setEditRally(
+                                        editRally.filter(
+                                          (editTouch) =>
+                                            editTouch.id !== touch.id
+                                        )
+                                      )
+                                    }
+                                  >
+                                    Remove
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         )}
 
@@ -2668,6 +3129,29 @@ function App() {
                       </strong>
                     </div>
 
+                    <div className="stat-row">
+                      <span>
+                        Defensive Touches
+                      </span>
+                      <strong>
+                        {stats.defensiveTouches}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>Far Sets</span>
+                      <strong>
+                        {stats.farSets}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
+                      <span>Times Aced</span>
+                      <strong>
+                        {stats.timesAced}
+                      </strong>
+                    </div>
+
                     {/* DETAILS */}
 
                     {expandedPlayerId ===
@@ -2808,6 +3292,139 @@ function App() {
                                 )}
                             </>
                           )}
+
+                          {/* RALLY DETAILS */}
+
+                          {stats.defensiveTouches +
+                            stats.sets +
+                            stats.farSets >
+                            0 && (
+                              <>
+                                <div className="stat-divider" />
+
+                                <h4>
+                                  Rally Details
+                                </h4>
+
+                                <div className="stat-row">
+                                  <span>
+                                    Defensive Touches
+                                  </span>
+                                  <strong>
+                                    {stats.defensiveTouches}
+                                  </strong>
+                                </div>
+
+                                <div className="stat-row">
+                                  <span>Sets</span>
+                                  <strong>
+                                    {stats.sets}
+                                  </strong>
+                                </div>
+
+                                <div className="stat-row">
+                                  <span>Far Sets</span>
+                                  <strong>
+                                    {stats.farSets}
+                                  </strong>
+                                </div>
+
+                                <div className="stat-row">
+                                  <span>
+                                    Far Set %
+                                  </span>
+                                  <strong>
+                                    {percentage(
+                                      stats.farSets,
+                                      stats.sets + stats.farSets
+                                    )}
+                                    %
+                                  </strong>
+                                </div>
+                              </>
+                            )}
+
+                          {/* RECEIVING DETAILS */}
+
+                          {stats.servesReceived > 0 && (
+                            <>
+                              <div className="stat-divider" />
+
+                              <h4>
+                                Receiving Details
+                              </h4>
+
+                              <div className="stat-row">
+                                <span>
+                                  Legal Serves Received
+                                </span>
+                                <strong>
+                                  {stats.legalServesReceived}
+                                </strong>
+                              </div>
+
+                              <div className="stat-row">
+                                <span>Times Aced</span>
+                                <strong>
+                                  {stats.timesAced}
+                                </strong>
+                              </div>
+
+                              <div className="stat-row">
+                                <span>
+                                  Aced %
+                                </span>
+                                <strong>
+                                  {percentage(
+                                    stats.timesAced,
+                                    stats.legalServesReceived
+                                  )}
+                                  %
+                                </strong>
+                              </div>
+
+                              {Object.entries(
+                                stats.acedByServer
+                              ).map(([serverId, count]) => (
+                                <div
+                                  className="stat-row"
+                                  key={serverId}
+                                >
+                                  <span>
+                                    Aced by {getPlayerName(serverId)}
+                                  </span>
+                                  <strong>{count}</strong>
+                                </div>
+                              ))}
+                            </>
+                          )}
+
+                          {/* ACES BY RECEIVER */}
+
+                          {Object.keys(stats.acesByReceiver)
+                            .length > 0 && (
+                              <>
+                                <div className="stat-divider" />
+
+                                <h4>
+                                  Aces by Receiver
+                                </h4>
+
+                                {Object.entries(
+                                  stats.acesByReceiver
+                                ).map(([receiverId, count]) => (
+                                  <div
+                                    className="stat-row"
+                                    key={receiverId}
+                                  >
+                                    <span>
+                                      Aced {getPlayerName(receiverId)}
+                                    </span>
+                                    <strong>{count}</strong>
+                                  </div>
+                                ))}
+                              </>
+                            )}
 
                           {/* SERVE BREAKDOWN */}
 
