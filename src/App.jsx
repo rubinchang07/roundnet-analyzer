@@ -80,6 +80,10 @@ const POINTS_TO_OPTIONS = [11, 15, 21]
 // Picked in the Rally Touches step like a touch type, but ends the point.
 const BALL_DROPPED = "Ball Dropped"
 
+// A set that left the hitter in a bad spot. Stored as a Set with
+// weak: true.
+const WEAK_SET = "Weak Set"
+
 const SERVE_TYPE_KEYS = {
   c: "Cut",
   v: "Reverse",
@@ -100,7 +104,7 @@ const KEYBOARD_SHORTCUTS = [
   [["A", "Enter"], "Ace or returned, after Legal"],
   [["1–9", "0"], "Fault type in list order, after Fault"],
   [["Y", "N"], "Played through or not"],
-  [["H"], "No set, go to who hit the ball"],
+  [["H"], "Straight to the hit (no set)"],
   [["1", "2"], "Who hit the ball, in list order"],
   [["K", "O"], "Kill or offensive error"],
   [["X"], "Ball dropped (then pick who)"],
@@ -1343,7 +1347,8 @@ function App() {
       id: crypto.randomUUID(),
       timestamp: videoRef.current?.currentTime ?? null,
       playerId,
-      type: selectedTouchType
+      type: selectedTouchType === WEAK_SET ? "Set" : selectedTouchType,
+      ...(selectedTouchType === WEAK_SET ? { weak: true } : {})
     }
 
     setCurrentPointRally([
@@ -2074,6 +2079,10 @@ function App() {
         (touch) => touch.playerId === player.id
       )
 
+      const weakSets = playerTouches.filter(
+        (touch) => touch.type === "Set" && touch.weak
+      ).length
+
       const lostDefensiveTouches = playerTouches.filter(
         (touch) =>
           touch.type === "Defensive Touch" &&
@@ -2245,6 +2254,7 @@ function App() {
         defensiveTouches: touchCounts["Defensive Touch"],
         lostDefensiveTouches,
         sets: touchCounts["Set"],
+        weakSets,
         farSets: touchCounts["Far Set"],
 
         servesReceived: servesReceived.length,
@@ -3100,7 +3110,7 @@ function App() {
                 <h2>Rally Touches</h2>
 
                 <div className="button-group">
-                  {EXTRA_TOUCH_TYPES.map((type) => (
+                  {[...EXTRA_TOUCH_TYPES, WEAK_SET].map((type) => (
                     <button
                       key={type}
                       className={
@@ -3126,7 +3136,7 @@ function App() {
                       setSkippedSetStep(setStepKey)
                     }}
                   >
-                    No Set
+                    Straight to the Hit
                   </button>
 
                   <button
@@ -3192,6 +3202,7 @@ function App() {
                         <span>
                           {touch.type}
                           {touch.controlled === false ? " (lost)" : ""}
+                          {touch.weak ? " (weak)" : ""}
                           {" · "}
                           {getPlayerName(touch.playerId)}
                           {touch.timestamp !== null
@@ -3893,6 +3904,7 @@ function App() {
                                   <span>
                                     {touch.type}
                                     {touch.controlled === false ? " (lost)" : ""}
+                                    {touch.weak ? " (weak)" : ""}
                                     {" · "}
                                     {getPlayerName(touch.playerId)}
                                   </span>
@@ -4264,6 +4276,15 @@ function App() {
                     </div>
 
                     <div className="stat-row">
+                      <span>Kill %</span>
+                      <strong>
+                        {stats.hits > 0
+                          ? `${percentage(stats.kills, stats.hits)}%`
+                          : "–"}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
                       <span>
                         Offensive Errors
                       </span>
@@ -4506,6 +4527,19 @@ function App() {
 
                                 {stats.hits > 0 && (
                                   <div className="stat-row">
+                                    <span>Kill %</span>
+                                    <strong>
+                                      {percentage(
+                                        stats.kills,
+                                        stats.hits
+                                      )}
+                                      %
+                                    </strong>
+                                  </div>
+                                )}
+
+                                {stats.hits > 0 && (
+                                  <div className="stat-row">
                                     <span>
                                       Hitting Efficiency
                                     </span>
@@ -4551,6 +4585,19 @@ function App() {
                                     {stats.sets}
                                   </strong>
                                 </div>
+
+                                {stats.sets > 0 && (
+                                  <div className="stat-row">
+                                    <span>Weak Set %</span>
+                                    <strong>
+                                      {percentage(
+                                        stats.weakSets,
+                                        stats.sets
+                                      )}
+                                      %
+                                    </strong>
+                                  </div>
+                                )}
 
                                 <div className="stat-row">
                                   <span>Far Sets</span>
