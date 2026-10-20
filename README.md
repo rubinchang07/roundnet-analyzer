@@ -38,7 +38,7 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 ### Point & Rally Tracking
 
 - **Point Outcomes:** Record point winners, kills, offensive, defensive and receive errors, violations, and other point outcomes.
-- **Guided Rallies:** Once a serve is returned, the serve inputs step aside and the app asks who hit the ball, then whether it was a kill, an offensive error, or a defensive touch (and by whom), and repeats until the point ends. A ball that isn't returned is a receive or defensive error. Sets and far sets can be added along the way, and any other ending is one click away.
+- **Guided Rallies:** Once a serve is returned, the serve inputs step aside and the app asks who hit the ball, then whether it was a kill, an offensive error, a defensive touch that was kept up (and by whom), or a touch the defender couldn't keep up (still a kill), and repeats until the point ends. A ball that isn't returned is a receive or defensive error. Sets and far sets can be added along the way, and any other ending is one click away.
 - **Violations:** Record which point-loss infraction ended the point: under three touches on the serve return, catch, No Hit Zone, hitting your own team, entering the cylinder, or a hinder.
 - **Player Attribution:** Attribute kills, errors and violations to individual players.
 - **Automatic Resolution:** Automatically resolve point state for aces and double faults.
@@ -57,6 +57,7 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 
 - **Serve Editing:** Correct serve classifications, outcomes, fault information, serve type, and serving hand.
 - **Point Editing:** Correct point winners, outcomes, and responsible players.
+- **Deleting:** Delete a stored point (with its serves) or a serve. Deleting a serve from a finished point deletes that point; Undo brings either back.
 - **Structural Corrections:** Reopen the most recently completed point when an edit changes the underlying point structure, such as changing an ace or double fault.
 - **Undo:** Revert match actions using snapshot-based state restoration.
 - **Persistent Match State:** Save match analysis data in browser `localStorage` between refreshes.
@@ -73,6 +74,7 @@ The JSON export only adds fields to the original layout, so older readers keep w
 - `points[].outcome` (v3 values): adds `"Defensive Error"`, `"Receive Error"` and `"Violation"` to `"Ace"`, `"Double Fault"`, `"Kill"`, `"Offensive Error"` and `"Other"`.
 - `points[].violationType` (v3): which infraction, for `"Violation"` points, otherwise `null`. One of `"Under Three Touches"`, `"Catch"`, `"No Hit Zone"`, `"Hit Own Team"`, `"Cylinder"`, `"Hinder"`.
 - `points[].rally[].type` (v3 values): adds `"Hit"` to `"Defensive Touch"`, `"Set"` and `"Far Set"`.
+- `points[].rally[].controlled` (v3): on defensive touches, `true` when the defender kept the ball up and `false` when they touched it but lost it.
 - `serves[].receiverId`: the receiving player's id, or `null` when not tagged.
 - `points[].gameNumber`: the game the point was played in (defaults to `1`).
 - `points[].rally`: rally touches in order, each `{ "id", "timestamp", "playerId", "type" }` where `type` is `"Defensive Touch"`, `"Set"`, or `"Far Set"`. Aces and double faults have an empty list.

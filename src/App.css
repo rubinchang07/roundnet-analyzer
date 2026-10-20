@@ -1081,3 +1081,17 @@ button:disabled {
   font-size: 0.8rem;
   color: #6b7280;
 }
+
+.history-item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.delete-button {
+  color: #b42318;
+}
+
+.delete-button:hover {
+  background: #fff1f0;
+}
