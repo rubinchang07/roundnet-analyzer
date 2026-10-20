@@ -76,6 +76,9 @@ const VIOLATION_TYPES = [
 
 const POINTS_TO_OPTIONS = [11, 15, 21]
 
+// Picked in the Rally Touches step like a touch type, but ends the point.
+const BALL_DROPPED = "Ball Dropped"
+
 const SERVE_TYPE_KEYS = {
   c: "Cut",
   v: "Reverse",
@@ -99,7 +102,7 @@ const KEYBOARD_SHORTCUTS = [
   [["H"], "No set, go to who hit the ball"],
   [["1", "2"], "Who hit the ball, in list order"],
   [["K", "O"], "Kill or offensive error"],
-  [["X"], "Not returned"],
+  [["X"], "Ball dropped (then pick who)"],
   [["Esc"], "Clear the current choice"],
   [["Ctrl", "Z"], "Undo"]
 ]
@@ -2277,20 +2280,15 @@ function App() {
     }
   }
 
-  function markNotReturned() {
-    if (lastDefensiveTouch) {
-      finishPoint(
-        getOtherTeam(hittingTeam),
-        "Defensive Error",
-        lastDefensiveTouch.playerId
-      )
-    } else {
-      finishPoint(
-        servingTeam,
-        "Receive Error",
-        currentPointReceiverId
-      )
-    }
+  // The ball hit the ground before the team could hit it back: a
+  // receive error off the serve, a defensive error after a defensive
+  // touch, charged to whoever let it drop.
+  function dropBall(playerId) {
+    finishPoint(
+      getOtherTeam(hittingTeam),
+      lastDefensiveTouch ? "Defensive Error" : "Receive Error",
+      playerId
+    )
   }
 
   function handleShortcut(event) {
@@ -2397,8 +2395,8 @@ function App() {
       if (hitter) {
         addTouch("Hit", hitter.id)
       }
-    } else if (inRally && !lastHit && !askForSet && key === "x") {
-      markNotReturned()
+    } else if (askForSet && key === "x") {
+      setSelectedTouchType(BALL_DROPPED)
     } else if (inRally && lastHit && key === "k") {
       finishPoint(hittingTeam, "Kill", lastHit.playerId)
     } else if (inRally && lastHit && key === "o") {
@@ -3004,32 +3002,6 @@ function App() {
                           {player.name}
                         </button>
                       ))}
-
-                    {lastDefensiveTouch ? (
-                      <button
-                        onClick={() =>
-                          finishPoint(
-                            getOtherTeam(hittingTeam),
-                            "Defensive Error",
-                            lastDefensiveTouch.playerId
-                          )
-                        }
-                      >
-                        Not returned (Defensive Error)
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() =>
-                          finishPoint(
-                            servingTeam,
-                            "Receive Error",
-                            currentPointReceiverId
-                          )
-                        }
-                      >
-                        Not returned (Receive Error)
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
@@ -3155,11 +3127,32 @@ function App() {
                   >
                     No Set
                   </button>
+
+                  <button
+                    className={
+                      selectedTouchType === BALL_DROPPED
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedTouchType(
+                        selectedTouchType === BALL_DROPPED
+                          ? null
+                          : BALL_DROPPED
+                      )
+                    }
+                  >
+                    Ball Dropped
+                  </button>
                 </div>
 
                 {selectedTouchType && (
                   <div className="touch-player-picker">
-                    <span>Who made the {selectedTouchType.toLowerCase()}?</span>
+                    <span>
+                      {selectedTouchType === BALL_DROPPED
+                        ? `Who let it drop? (${lastDefensiveTouch ? "defensive" : "receive"} error)`
+                        : `Who made the ${selectedTouchType.toLowerCase()}?`}
+                    </span>
 
                     <div className="button-group">
                       {players
@@ -3171,7 +3164,9 @@ function App() {
                           <button
                             key={player.id}
                             onClick={() =>
-                              recordTouch(player.id)
+                              selectedTouchType === BALL_DROPPED
+                                ? dropBall(player.id)
+                                : recordTouch(player.id)
                             }
                           >
                             {player.name}
