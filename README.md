@@ -38,10 +38,11 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 ### Point & Rally Tracking
 
 - **Point Outcomes:** Record point winners, kills, offensive, defensive and receive errors, violations, and other point outcomes.
-- **Violations:** Record which point-loss infraction ended the point, such as under three touches on the serve return, double contact, a No Hit Zone violation or a hinder.
+- **Guided Rallies:** Once a serve is returned, the serve inputs step aside and the app asks who hit the ball, then whether it was a kill, an offensive error, or a defensive touch (and by whom), and repeats until the point ends. A ball that isn't returned is a receive or defensive error. Sets and far sets can be added along the way, and any other ending is one click away.
+- **Violations:** Record which point-loss infraction ended the point: under three touches on the serve return, catch, No Hit Zone, hitting your own team, entering the cylinder, or a hinder.
 - **Player Attribution:** Attribute kills, errors and violations to individual players.
 - **Automatic Resolution:** Automatically resolve point state for aces and double faults.
-- **Rally Touches:** Tag defensive touches, sets, and far sets during a rally, attributed to individual players.
+- **Rally Touches:** Record hits, defensive touches, sets, and far sets during a rally, attributed to individual players, with hitting efficiency per player.
 - **Match & Game Info:** Record the date played and the game number; each point is stamped with its game so one export can hold a full match.
 - **Live Score:** Show the current game's score, set the target score (11, 15 or 21) and an optional hard cap, and start the next game when one ends.
 
@@ -68,9 +69,10 @@ The JSON export only adds fields to the original layout, so older readers keep w
 
 - `formatVersion`: `3`.
 - `match`: `{ "id": "<uuid>", "playedOn": "YYYY-MM-DD" | null, "pointsTo": 21, "hardCap": null }`. The id is generated per match and changes on Start New Match. `pointsTo` and `hardCap` are new in v3.
-- `serves[].faultType` (v3 values): `"High"`, `"Rim"`, `"Pocket"`, `"Missed Net"`, `"Double Rim"`, `"No Hit Zone"`, `"Short Toss"`, `"Same Hand"`, `"Foot on Line"`, `"Catch"`, `"Dropped Toss"`, `"Three Seconds"`.
+- `serves[].faultType` (v3 values): `"High"`, `"Rim"`, `"Pocket"`, `"Missed Net"`, `"Double Rim"`, `"Short Toss"`, `"Same Hand"`, `"Foot on Line"`, `"Dropped Toss"`, `"Three Seconds"`.
 - `points[].outcome` (v3 values): adds `"Defensive Error"`, `"Receive Error"` and `"Violation"` to `"Ace"`, `"Double Fault"`, `"Kill"`, `"Offensive Error"` and `"Other"`.
-- `points[].violationType` (v3): which infraction, for `"Violation"` points, otherwise `null`. One of `"Under Three Touches"`, `"Four Hits"`, `"Double Contact"`, `"Two-Handed Hit"`, `"Catch"`, `"No Hit Zone"`, `"Set Contact"`, `"Out of Turn"`, `"Hit Own Team"`, `"Cylinder"`, `"Hinder"`, `"Serve Movement"`, `"Delay or Conduct"`.
+- `points[].violationType` (v3): which infraction, for `"Violation"` points, otherwise `null`. One of `"Under Three Touches"`, `"Catch"`, `"No Hit Zone"`, `"Hit Own Team"`, `"Cylinder"`, `"Hinder"`.
+- `points[].rally[].type` (v3 values): adds `"Hit"` to `"Defensive Touch"`, `"Set"` and `"Far Set"`.
 - `serves[].receiverId`: the receiving player's id, or `null` when not tagged.
 - `points[].gameNumber`: the game the point was played in (defaults to `1`).
 - `points[].rally`: rally touches in order, each `{ "id", "timestamp", "playerId", "type" }` where `type` is `"Defensive Touch"`, `"Set"`, or `"Far Set"`. Aces and double faults have an empty list.

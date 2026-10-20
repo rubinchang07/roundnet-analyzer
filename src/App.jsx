@@ -16,7 +16,15 @@ function loadSavedMatch() {
 }
 
 const TOUCH_TYPES = [
+  "Hit",
   "Defensive Touch",
+  "Set",
+  "Far Set"
+]
+
+// Optional extra touches the tagger can add during a rally. Hits and
+// defensive touches are asked for by the rally flow itself.
+const EXTRA_TOUCH_TYPES = [
   "Set",
   "Far Set"
 ]
@@ -29,11 +37,9 @@ const SERVE_FAULT_TYPES = [
   "Pocket",        // 4.5.7  side pocket
   "Missed Net",    // 4.5.10 misses the set entirely
   "Double Rim",    // 4.5.11 hits the set more than once
-  "No Hit Zone",   // 4.5.15 lands on or inside the NHZ lines
   "Short Toss",    // 4.5.1  struck before travelling 10 cm
   "Same Hand",     // 4.5.14 released and struck with the same hand
   "Foot on Line",  // 4.5.2, 4.5.4–4.5.5 on the line, into the circle, or a moved foot
-  "Catch",         // 4.5.3
   "Dropped Toss",  // 4.5.12 released and not struck
   "Three Seconds"  // 4.5.13 no toss within 3 seconds of "service"
 ]
@@ -58,21 +64,14 @@ const RALLY_OUTCOMES = [
   { name: "Violation", side: "loser" }
 ]
 
-// Point-loss infractions (IRF rules chapters 3, 5, 6 and 7).
+// Point-loss infractions (IRF rules chapters 5 and 6).
 const VIOLATION_TYPES = [
   "Under Three Touches", // 5.5.1.7 serve returned in under 3 touches
-  "Four Hits",           // 5.4.1
-  "Double Contact",      // 5.4.4
-  "Two-Handed Hit",      // 5.4.3
   "Catch",               // 5.4.2
   "No Hit Zone",         // 5.6.2 hitter in the NHZ
-  "Set Contact",         // 5.7
-  "Out of Turn",         // 5.5.5.1
   "Hit Own Team",        // 5.5.5.2
   "Cylinder",            // 6.2.2.1
-  "Hinder",              // 6.6
-  "Serve Movement",      // 3.8.9 illegal movement during the serve
-  "Delay or Conduct"     // 3.10, 7.4
+  "Hinder"               // 6.6
 ]
 
 const POINTS_TO_OPTIONS = [11, 15, 21]
@@ -292,6 +291,7 @@ function App() {
   const [pendingWinningTeam, setPendingWinningTeam] = useState(null)
   const [pendingOutcome, setPendingOutcome] = useState(null)
   const [pendingViolationType, setPendingViolationType] = useState(null)
+  const [manualEnding, setManualEnding] = useState(false)
 
   const [expandedPlayerId, setExpandedPlayerId] = useState(null)
   const [expandedTeam, setExpandedTeam] = useState(null)
@@ -1049,6 +1049,7 @@ function App() {
     setPendingWinningTeam(lastSnapshot.pendingWinningTeam)
     setPendingOutcome(lastSnapshot.pendingOutcome)
     setPendingViolationType(lastSnapshot.pendingViolationType ?? null)
+    setManualEnding(lastSnapshot.manualEnding ?? false)
 
     setActionHistory(actionHistory.slice(0, -1))
   }
@@ -1199,7 +1200,8 @@ function App() {
       selectedFaultType,
       pendingWinningTeam,
       pendingOutcome,
-      pendingViolationType
+      pendingViolationType,
+      manualEnding
     })
 
     setActionHistory((previousHistory) => [
@@ -1244,6 +1246,7 @@ function App() {
     setPendingWinningTeam(null)
     setPendingOutcome(null)
     setPendingViolationType(null)
+    setManualEnding(false)
 
     setSelectedPlayerId(null)
     setSelectedReceiverId(null)
@@ -1274,6 +1277,20 @@ function App() {
     ])
 
     setSelectedTouchType(null)
+  }
+
+  function addTouch(type, playerId) {
+    saveSnapshot()
+
+    setCurrentPointRally([
+      ...currentPointRally,
+      {
+        id: crypto.randomUUID(),
+        timestamp: videoRef.current?.currentTime ?? null,
+        playerId,
+        type
+      }
+    ])
   }
 
   function removeCurrentTouch(touchId) {
@@ -1525,6 +1542,29 @@ function App() {
       ) ||
       latestServe.playedThrough === true
     )
+
+  // Where the rally is, worked out from the touches so far. The
+  // receiving team hits first; a defensive touch hands the next hit
+  // to the toucher's team.
+  const servingTeam = currentPointServerId
+    ? getPlayerTeam(currentPointServerId)
+    : null
+
+  let hittingTeam = servingTeam ? getOtherTeam(servingTeam) : null
+  let lastHit = null
+  let lastDefensiveTouch = null
+
+  currentPointRally.forEach((touch) => {
+    if (touch.type === "Hit") {
+      lastHit = touch
+    }
+
+    if (touch.type === "Defensive Touch") {
+      lastHit = null
+      lastDefensiveTouch = touch
+      hittingTeam = getPlayerTeam(touch.playerId)
+    }
+  })
 
   // -----------------------------
   // Match statistics
@@ -1836,6 +1876,7 @@ function App() {
         receiveErrors: playerReceiveErrors,
         violations: playerViolations,
 
+        hits: touchCounts["Hit"],
         defensiveTouches: touchCounts["Defensive Touch"],
         sets: touchCounts["Set"],
         farSets: touchCounts["Far Set"],
@@ -1855,6 +1896,7 @@ function App() {
         stats.defensiveErrors > 0 ||
         stats.receiveErrors > 0 ||
         stats.violations > 0 ||
+        stats.hits > 0 ||
         stats.defensiveTouches > 0 ||
         stats.sets > 0 ||
         stats.farSets > 0 ||
@@ -2188,6 +2230,7 @@ function App() {
 
             {/* HAND */}
 
+            {!rallyStarted && (
             <div className="control-section">
               <h2>Hand</h2>
 
@@ -2219,9 +2262,11 @@ function App() {
                 </button>
               </div>
             </div>
+            )}
 
             {/* SERVE TYPE */}
 
+            {!rallyStarted && (
             <div className="control-section">
               <h2>Serve Type</h2>
 
@@ -2249,10 +2294,11 @@ function App() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* SERVE LEGALITY */}
 
-            {videoURL && (
+            {videoURL && !rallyStarted && (
               <div className="control-section">
                 <h2>Serve Legality</h2>
 
@@ -2375,14 +2421,126 @@ function App() {
                 </div>
               )}
 
-            {/* RALLY TOUCHES */}
+            {/* RALLY: WHO HIT IT */}
 
-            {rallyStarted && (
+            {rallyStarted &&
+              !manualEnding &&
+              !lastHit && (
+                <div className="control-section">
+                  <h2>Who Hit the Ball?</h2>
+
+                  <div className="button-group">
+                    {players
+                      .filter(
+                        (player) =>
+                          getPlayerTeam(player.id) === hittingTeam
+                      )
+                      .map((player) => (
+                        <button
+                          key={player.id}
+                          onClick={() => addTouch("Hit", player.id)}
+                        >
+                          {player.name}
+                        </button>
+                      ))}
+
+                    {lastDefensiveTouch ? (
+                      <button
+                        onClick={() =>
+                          finishPoint(
+                            getOtherTeam(hittingTeam),
+                            "Defensive Error",
+                            lastDefensiveTouch.playerId
+                          )
+                        }
+                      >
+                        Not returned (Defensive Error)
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          finishPoint(
+                            servingTeam,
+                            "Receive Error",
+                            currentPointReceiverId
+                          )
+                        }
+                      >
+                        Not returned (Receive Error)
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* RALLY: AFTER THE HIT */}
+
+            {rallyStarted &&
+              !manualEnding &&
+              lastHit && (
+                <div className="control-section">
+                  <h2>
+                    {getPlayerName(lastHit.playerId)}'s Hit
+                  </h2>
+
+                  <div className="button-group">
+                    <button
+                      onClick={() =>
+                        finishPoint(
+                          hittingTeam,
+                          "Kill",
+                          lastHit.playerId
+                        )
+                      }
+                    >
+                      Kill
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        finishPoint(
+                          getOtherTeam(hittingTeam),
+                          "Offensive Error",
+                          lastHit.playerId
+                        )
+                      }
+                    >
+                      Offensive Error
+                    </button>
+                  </div>
+
+                  <div className="touch-player-picker">
+                    <span>Defensive touch by</span>
+
+                    <div className="button-group">
+                      {players
+                        .filter(
+                          (player) =>
+                            getPlayerTeam(player.id) !== hittingTeam
+                        )
+                        .map((player) => (
+                          <button
+                            key={player.id}
+                            onClick={() =>
+                              addTouch("Defensive Touch", player.id)
+                            }
+                          >
+                            {player.name}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            {/* RALLY: SETS AND THE TOUCH LOG */}
+
+            {rallyStarted && !manualEnding && (
               <div className="control-section">
                 <h2>Rally Touches</h2>
 
                 <div className="button-group">
-                  {TOUCH_TYPES.map((type) => (
+                  {EXTRA_TOUCH_TYPES.map((type) => (
                     <button
                       key={type}
                       className={
@@ -2401,6 +2559,10 @@ function App() {
                       {type}
                     </button>
                   ))}
+
+                  <button onClick={() => setManualEnding(true)}>
+                    Point Ended Another Way
+                  </button>
                 </div>
 
                 {selectedTouchType && (
@@ -2408,16 +2570,21 @@ function App() {
                     <span>Who made the {selectedTouchType.toLowerCase()}?</span>
 
                     <div className="button-group">
-                      {players.map((player) => (
-                        <button
-                          key={player.id}
-                          onClick={() =>
-                            recordTouch(player.id)
-                          }
-                        >
-                          {player.name}
-                        </button>
-                      ))}
+                      {players
+                        .filter(
+                          (player) =>
+                            getPlayerTeam(player.id) === hittingTeam
+                        )
+                        .map((player) => (
+                          <button
+                            key={player.id}
+                            onClick={() =>
+                              recordTouch(player.id)
+                            }
+                          >
+                            {player.name}
+                          </button>
+                        ))}
                     </div>
                   </div>
                 )}
@@ -2447,9 +2614,10 @@ function App() {
               </div>
             )}
 
-            {/* POINT WINNER */}
+            {/* POINT WINNER (any other ending) */}
 
             {rallyStarted &&
+              manualEnding &&
               !pendingWinningTeam && (
                 <div className="control-section">
                   <h2>Point Winner</h2>
@@ -2473,6 +2641,10 @@ function App() {
                       }
                     >
                       {team2.join(" / ")}
+                    </button>
+
+                    <button onClick={() => setManualEnding(false)}>
+                      Back to the Rally
                     </button>
                   </div>
                 </div>
@@ -3636,7 +3808,8 @@ function App() {
 
                           {/* RALLY DETAILS */}
 
-                          {stats.defensiveTouches +
+                          {stats.hits +
+                            stats.defensiveTouches +
                             stats.sets +
                             stats.farSets >
                             0 && (
@@ -3646,6 +3819,29 @@ function App() {
                                 <h4>
                                   Rally Details
                                 </h4>
+
+                                <div className="stat-row">
+                                  <span>Hits</span>
+                                  <strong>
+                                    {stats.hits}
+                                  </strong>
+                                </div>
+
+                                {stats.hits > 0 && (
+                                  <div className="stat-row">
+                                    <span>
+                                      Hitting Efficiency
+                                    </span>
+                                    <strong>
+                                      {percentage(
+                                        stats.kills -
+                                          stats.offensiveErrors,
+                                        stats.hits
+                                      )}
+                                      %
+                                    </strong>
+                                  </div>
+                                )}
 
                                 <div className="stat-row">
                                   <span>
