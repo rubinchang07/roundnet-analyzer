@@ -1026,3 +1026,58 @@ button:disabled {
 
   font-size: 0.9rem;
 }
+
+.match-info + .match-info {
+  margin-top: 12px;
+}
+
+.match-info input[type="number"] {
+  width: 6rem;
+}
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.scoreboard div {
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.scoreboard span {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.scoreboard strong {
+  font-size: 1.5rem;
+}
+
+.game-over {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.9rem;
+}
+
+.serving-order-hint {
+  margin: 8px 0 0;
+
+  font-size: 0.8rem;
+  color: #6b7280;
+}
