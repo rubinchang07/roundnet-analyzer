@@ -96,6 +96,7 @@ const KEYBOARD_SHORTCUTS = [
   [["A", "Enter"], "Ace or returned, after Legal"],
   [["1–9", "0"], "Fault type in list order, after Fault"],
   [["Y", "N"], "Played through or not"],
+  [["H"], "No set, go to who hit the ball"],
   [["1", "2"], "Who hit the ball, in list order"],
   [["K", "O"], "Kill or offensive error"],
   [["X"], "Not returned"],
@@ -1898,6 +1899,28 @@ function App() {
     }
   })
 
+  // The rally goes step by step: after a return or a defensive touch
+  // the tagger first records any set, then who hit the ball. "No set"
+  // skips the first step for this one spot in the rally.
+  const [skippedSetStep, setSkippedSetStep] = useState(null)
+
+  const setStepKey = `${currentPointServes[0]?.id}:${currentPointRally.length}`
+
+  const lastDefenseIndex = currentPointRally.findLastIndex(
+    (touch) => touch.type === "Defensive Touch"
+  )
+
+  const setMade = currentPointRally
+    .slice(lastDefenseIndex + 1)
+    .some((touch) => EXTRA_TOUCH_TYPES.includes(touch.type))
+
+  const askForSet =
+    rallyStarted &&
+    !manualEnding &&
+    !lastHit &&
+    !setMade &&
+    skippedSetStep !== setStepKey
+
   // -----------------------------
   // Match statistics
   // -----------------------------
@@ -2358,7 +2381,15 @@ function App() {
       (key === "y" || key === "n")
     ) {
       markServe("Fault", selectedFaultType, key === "y")
-    } else if (inRally && !lastHit && (key === "1" || key === "2")) {
+    } else if (askForSet && key === "h") {
+      setSelectedTouchType(null)
+      setSkippedSetStep(setStepKey)
+    } else if (
+      inRally &&
+      !lastHit &&
+      !askForSet &&
+      (key === "1" || key === "2")
+    ) {
       const hitter = players.filter(
         (player) => getPlayerTeam(player.id) === hittingTeam
       )[Number(key) - 1]
@@ -2366,7 +2397,7 @@ function App() {
       if (hitter) {
         addTouch("Hit", hitter.id)
       }
-    } else if (inRally && !lastHit && key === "x") {
+    } else if (inRally && !lastHit && !askForSet && key === "x") {
       markNotReturned()
     } else if (inRally && lastHit && key === "k") {
       finishPoint(hittingTeam, "Kill", lastHit.playerId)
@@ -2442,6 +2473,25 @@ function App() {
                 </div>
               </div>
             )}
+
+            {/* KEYBOARD SHORTCUTS */}
+
+            <details className="shortcuts-panel">
+              <summary>Keyboard Shortcuts</summary>
+
+              <dl className="shortcut-list">
+                {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
+                  <div key={action} style={{ display: "contents" }}>
+                    <dt>
+                      {keys.map((key) => (
+                        <kbd key={key}>{key}</kbd>
+                      ))}
+                    </dt>
+                    <dd>{action}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
           </div>
 
           <aside className="controls-panel">
@@ -2935,7 +2985,8 @@ function App() {
 
             {rallyStarted &&
               !manualEnding &&
-              !lastHit && (
+              !lastHit &&
+              !askForSet && (
                 <div className="control-section">
                   <h2>Who Hit the Ball?</h2>
 
@@ -3069,9 +3120,9 @@ function App() {
                 </div>
               )}
 
-            {/* RALLY: SETS AND THE TOUCH LOG */}
+            {/* RALLY: SET BEFORE THE HIT */}
 
-            {rallyStarted && !manualEnding && (
+            {askForSet && (
               <div className="control-section">
                 <h2>Rally Touches</h2>
 
@@ -3096,8 +3147,13 @@ function App() {
                     </button>
                   ))}
 
-                  <button onClick={() => setManualEnding(true)}>
-                    Point Ended Another Way
+                  <button
+                    onClick={() => {
+                      setSelectedTouchType(null)
+                      setSkippedSetStep(setStepKey)
+                    }}
+                  >
+                    No Set
                   </button>
                 </div>
 
@@ -3124,6 +3180,14 @@ function App() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* RALLY SO FAR */}
+
+            {rallyStarted && !manualEnding && (
+              <div className="control-section">
+                <h2>Rally So Far</h2>
 
                 {currentPointRally.length > 0 && (
                   <ul className="touch-list">
@@ -3150,8 +3214,15 @@ function App() {
                     ))}
                   </ul>
                 )}
+
+                <div className="button-group">
+                  <button onClick={() => setManualEnding(true)}>
+                    Point Ended Another Way
+                  </button>
+                </div>
               </div>
             )}
+
 
             {/* POINT WINNER (any other ending) */}
 
@@ -3331,24 +3402,6 @@ function App() {
               </div>
             )}
 
-            {/* KEYBOARD SHORTCUTS */}
-
-            <details className="control-section">
-              <summary>Keyboard Shortcuts</summary>
-
-              <dl className="shortcut-list">
-                {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
-                  <div key={action} style={{ display: "contents" }}>
-                    <dt>
-                      {keys.map((key) => (
-                        <kbd key={key}>{key}</kbd>
-                      ))}
-                    </dt>
-                    <dd>{action}</dd>
-                  </div>
-                ))}
-              </dl>
-            </details>
           </aside>
         </section>
 
