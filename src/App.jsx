@@ -71,7 +71,8 @@ const VIOLATION_TYPES = [
   "No Hit Zone",         // 5.6.2 hitter in the NHZ
   "Hit Own Team",        // 5.5.5.2
   "Cylinder",            // 6.2.2.1
-  "Hinder"               // 6.6
+  "Hinder",              // 6.6
+  "Simultaneous Contact" // 5.5.4.1 ball played while still on the net
 ]
 
 const POINTS_TO_OPTIONS = [11, 15, 21]

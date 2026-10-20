@@ -41,7 +41,7 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 
 - **Point Outcomes:** Record point winners, kills, offensive, defensive and receive errors, violations, and other point outcomes.
 - **Guided Rallies:** Once a serve is returned, the serve inputs step aside and the app asks for the set (set, far set, or No Set), then who hit the ball, then whether it was a kill, an offensive error, a defensive touch that was kept up (and by whom), or a touch the defender couldn't keep up (still a kill), and repeats until the point ends. If the ball drops before anyone hits it, Ball Dropped asks who let it drop and records a receive error (off the serve) or a defensive error (after a defensive touch). Sets and far sets can be added along the way, and any other ending is one click away.
-- **Violations:** Record which point-loss infraction ended the point: under three touches on the serve return, catch, No Hit Zone, hitting your own team, entering the cylinder, or a hinder.
+- **Violations:** Record which point-loss infraction ended the point: under three touches on the serve return, catch, No Hit Zone, hitting your own team, entering the cylinder, a hinder, or simultaneous contact (playing the ball while it is still on the net).
 - **Player Attribution:** Attribute kills, errors and violations to individual players.
 - **Automatic Resolution:** Automatically resolve point state for aces and double faults.
 - **Rally Touches:** Record hits, defensive touches, sets, and far sets during a rally, attributed to individual players, with hitting efficiency per player.
@@ -76,7 +76,7 @@ The JSON export only adds fields to the original layout, so older readers keep w
 - `match`: `{ "id": "<uuid>", "playedOn": "YYYY-MM-DD" | null, "pointsTo": 21, "hardCap": null }`. The id is generated per match and changes on Start New Match. `pointsTo` and `hardCap` are new in v3.
 - `serves[].faultType` (v3 values): `"High"`, `"Rim"`, `"Pocket"`, `"Missed Net"`, `"Double Rim"`, `"Short Toss"`, `"Same Hand"`, `"Foot on Line"`, `"Dropped Toss"`, `"Three Seconds"`.
 - `points[].outcome` (v3 values): adds `"Defensive Error"`, `"Receive Error"` and `"Violation"` to `"Ace"`, `"Double Fault"`, `"Kill"`, `"Offensive Error"` and `"Other"`.
-- `points[].violationType` (v3): which infraction, for `"Violation"` points, otherwise `null`. One of `"Under Three Touches"`, `"Catch"`, `"No Hit Zone"`, `"Hit Own Team"`, `"Cylinder"`, `"Hinder"`.
+- `points[].violationType` (v3): which infraction, for `"Violation"` points, otherwise `null`. One of `"Under Three Touches"`, `"Catch"`, `"No Hit Zone"`, `"Hit Own Team"`, `"Cylinder"`, `"Hinder"`, `"Simultaneous Contact"`.
 - `points[].rally[].type` (v3 values): adds `"Hit"` to `"Defensive Touch"`, `"Set"` and `"Far Set"`.
 - `points[].rally[].controlled` (v3): on defensive touches, `true` when the defender kept the ball up and `false` when they touched it but lost it.
 - `serves[].replayed` and `serves[].replayReason` (v3): `true` and `"Serve Dispute"`, `"Hinder"` or `"Other"` for a replayed serve, otherwise `false` and `null`. Replayed serves don't count as attempts; `serveAttempt` numbers only the serves that count.
