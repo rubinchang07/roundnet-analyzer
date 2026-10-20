@@ -1,0 +1,59 @@
+name: Database
+
+on:
+  push:
+    paths: ["db/**", ".github/workflows/db.yml"]
+  pull_request:
+    paths: ["db/**", ".github/workflows/db.yml"]
+
+jobs:
+  schema-and-queries:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: roundnet
+          POSTGRES_PASSWORD: roundnet
+          POSTGRES_DB: roundnet
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U roundnet"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: roundnet
+      PGPASSWORD: roundnet
+      PGDATABASE: roundnet
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build schema and load example matches
+        run: db/scripts/load_examples.sh
+
+      - name: Check every example loaded
+        run: |
+          psql -X -At -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+              IF EXISTS (SELECT 1 FROM roundnet.import_batch WHERE status <> 'loaded') THEN
+                  RAISE EXCEPTION 'an example export did not load';
+              END IF;
+              IF (SELECT count(*) FROM roundnet.match WHERE status = 'completed') < 6 THEN
+                  RAISE EXCEPTION 'expected 6 completed example matches';
+              END IF;
+          END $$;
+          SQL
+
+      - name: Re-importing an export is a no-op
+        run: |
+          db/scripts/import.sh db/examples/2026-09-12_alex-blake_vs_casey-drew.json
+          test "$(psql -X -At -c 'SELECT count(*) FROM roundnet.import_batch')" = "$(ls db/examples/*.json | wc -l)"
+
+      - name: Run example queries
+        run: for f in db/queries/*.sql; do echo "== $f"; psql -X -v ON_ERROR_STOP=1 -f "$f"; done
+
+      - name: Migration applies cleanly to the current schema
+        run: |
+          psql -X -q -v ON_ERROR_STOP=1 -f db/migrate_v3.sql
+          psql -X -q -v ON_ERROR_STOP=1 -f db/import_analyzer.sql

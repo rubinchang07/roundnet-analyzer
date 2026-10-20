@@ -1,0 +1,19 @@
+# Local PostgreSQL with the roundnet schema and loader preinstalled.
+#   docker compose -f db/docker-compose.yml up -d
+# then connect with PGHOST=localhost PGPORT=5432 PGUSER=roundnet
+# PGPASSWORD=roundnet PGDATABASE=roundnet.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: roundnet
+      POSTGRES_PASSWORD: roundnet
+      POSTGRES_DB: roundnet
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./ddl.sql:/docker-entrypoint-initdb.d/01_ddl.sql:ro
+      - ./import_analyzer.sql:/docker-entrypoint-initdb.d/02_import_analyzer.sql:ro
+      - roundnet-data:/var/lib/postgresql/data
+volumes:
+  roundnet-data:

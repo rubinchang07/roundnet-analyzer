@@ -87,6 +87,26 @@ The JSON export only adds fields to the original layout, so older readers keep w
 
 ---
 
+## Analytics Database (PostgreSQL)
+
+The [`db/`](db/) folder adds a PostgreSQL database for analysis across matches. Load any JSON export from the app, and the match becomes rows in a normalized schema of players, partnerships, tournaments, matches, games, points, serves and rally touches. SQL then answers questions a single match can't, such as which partnership holds serve best, who leads a head-to-head, or how a player's form is trending.
+
+- **Schema:** normalized tables with the sport's rules enforced as constraints and triggers. For example, the server must be on the serving team, an ace must be won by the server, and partnerships are stored once as an unordered pair. See the [ERD](db/erd.png).
+- **Loader:** a PL/pgSQL function that reads export versions v1 to v3. It validates each file and loads it all or nothing. Re-imports are idempotent, a re-export of a match replaces the earlier load, and tagging slips are recorded as warnings.
+- **Analytics:** example queries for serve efficiency, kill % and hitting efficiency, partner combinations, head-to-head records, rankings and rolling form, built with CTEs, window functions and views.
+- **Tested in CI:** a GitHub Actions workflow builds the schema on PostgreSQL 16, loads the sample matches and runs every query.
+
+```bash
+docker compose -f db/docker-compose.yml up -d
+export PGHOST=localhost PGUSER=roundnet PGPASSWORD=roundnet PGDATABASE=roundnet
+db/scripts/load_examples.sh
+psql -f db/queries/partner_combos.sql
+```
+
+Setup, the import format and the example queries are documented in [db/README.md](db/README.md).
+
+---
+
 ## Tech Stack
 
 - **Frontend:** React, JavaScript (ES6+)
@@ -94,6 +114,7 @@ The JSON export only adds fields to the original layout, so older readers keep w
 - **Media Handling:** HTML5 Video
 - **Styling:** CSS3
 - **Storage:** Browser `localStorage`
+- **Analytics Database:** PostgreSQL 16 (SQL, PL/pgSQL), Docker Compose, GitHub Actions
 
 ---
 
@@ -160,7 +181,7 @@ Install a current version of [Node.js](https://nodejs.org/) and npm.
 
 ## Data & Privacy
 
-Roundnet Analyzer runs entirely client-side.
+The Roundnet Analyzer app runs entirely client-side. The analytics database is separate and only sees the exports you choose to load into it.
 
 Uploaded match videos are processed locally in the browser and are not uploaded to a remote server.
 
@@ -174,7 +195,7 @@ Match analysis data is stored using browser `localStorage`. Browser security pre
 - **Manual Video Reselection:** Local video files must be selected again after refreshing or reopening the application.
 - **Manual Event Tagging:** Serve and point events are manually tagged by the user.
 - **Recent-Point Reopening:** Structural corrections that require reopening a completed point are limited to the most recently completed point.
-- **Local Storage Only:** V1 does not include user accounts, cloud synchronization, or a backend database.
+- **Local Storage Only:** The app has no user accounts, cloud synchronization, or backend. Cross-match analysis happens by loading exports into the separate [PostgreSQL database](db/), not inside the app.
 
 ---
 

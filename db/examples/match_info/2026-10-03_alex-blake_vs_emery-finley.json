@@ -1,0 +1,23 @@
+{
+  "tournament": {
+    "name": "Scarlet Fall Open",
+    "start_date": "2026-10-03",
+    "city": "New Brunswick",
+    "region": "NJ",
+    "country_code": "US"
+  },
+  "division": {
+    "name": "Open",
+    "category": "open"
+  },
+  "stage": "bracket",
+  "round": "Final",
+  "team_names": [
+    "Alex/Blake",
+    "Emery/Finley"
+  ],
+  "seeds": [
+    1,
+    2
+  ]
+}
