@@ -71,12 +71,54 @@ const VIOLATION_TYPES = [
   "No Hit Zone",         // 5.6.2 hitter in the NHZ
   "Hit Own Team",        // 5.5.5.2
   "Cylinder",            // 6.2.2.1
-  "Hinder"               // 6.6
+  "Hinder",              // 6.6
+  "Simultaneous Contact" // 5.5.4.1 ball played while still on the net
 ]
 
 const POINTS_TO_OPTIONS = [11, 15, 21]
 
+// Picked in the Rally Touches step like a touch type, but ends the point.
+const BALL_DROPPED = "Ball Dropped"
+
+// A set that left the hitter in a bad spot. Stored as a Set with
+// weak: true.
+const WEAK_SET = "Weak Set"
+
+const SERVE_TYPE_KEYS = {
+  c: "Cut",
+  v: "Reverse",
+  j: "Jam",
+  d: "Drop",
+  t: "Tap-on"
+}
+
+// Shown in the Keyboard Shortcuts panel. The keys only act when the
+// matching buttons are on screen.
+const KEYBOARD_SHORTCUTS = [
+  [["Space"], "Play or pause the video"],
+  [["←", "→"], "Back or forward 5 seconds"],
+  [[",", "."], "Back or forward one frame"],
+  [["L", "R"], "Left or right hand"],
+  [["C", "V", "J", "D", "T"], "Cut, Reverse, Jam, Drop, Tap-on"],
+  [["G", "F"], "Legal (good) or fault"],
+  [["A", "Enter"], "Ace or returned, after Legal"],
+  [["1–9", "0"], "Fault type in list order, after Fault"],
+  [["Y", "N"], "Played through or not"],
+  [["H"], "Straight to the hit (no set)"],
+  [["1", "2"], "Who hit the ball, in list order"],
+  [["K", "O"], "Kill or offensive error"],
+  [["X"], "Ball dropped (then pick who)"],
+  [["Esc"], "Clear the current choice"],
+  [["Ctrl", "Z"], "Undo"]
+]
+
 const EXPORT_FORMAT_VERSION = 3
+
+// Replayed serves (IRF 3.2.5) are kept in the log but do not count
+// as attempts or in the serve statistics.
+function countedServes(point) {
+  return point.serves.filter((serve) => !serve.replayed)
+}
 
 function getOtherTeam(teamName) {
   return teamName === "Team 1" ? "Team 2" : "Team 1"
@@ -192,6 +234,7 @@ function getNextServe(gamePoints, teams, pointsTo) {
 
 function App() {
   const videoRef = useRef(null)
+  const importInputRef = useRef(null)
 
   const savedMatch = loadSavedMatch()
 
@@ -393,17 +436,51 @@ function App() {
   ])
 
   // -----------------------------
+  // Stats filter (one game or the whole match)
+  // -----------------------------
+
+  const [statsGame, setStatsGame] = useState("All")
+
+  const gameNumbers = [
+    ...new Set([
+      ...points.map((point) => point.gameNumber ?? 1),
+      gameNumber
+    ])
+  ].sort((a, b) => a - b)
+
+  const serveGames = new Map()
+  points.forEach((point) =>
+    point.serves.forEach((serve) =>
+      serveGames.set(serve.id, point.gameNumber ?? 1)
+    )
+  )
+
+  const statPoints =
+    statsGame === "All"
+      ? points
+      : points.filter(
+        (point) => (point.gameNumber ?? 1) === statsGame
+      )
+
+  const statServes = serves.filter(
+    (serve) =>
+      !serve.replayed &&
+      (statsGame === "All" ||
+        (serveGames.get(serve.id) ?? gameNumber) === statsGame)
+  )
+
+  // -----------------------------
   // Team statistics
   // -----------------------------
 
   const teamStats = ["Team 1", "Team 2"].map((teamName) => {
-    const teamPoints = points.filter(
+    const teamPoints = statPoints.filter(
       (point) => point.winningTeam === teamName
     )
 
     const pointsWon = teamPoints.length
 
-    const servingPoints = points.filter(
+    const servingPoints = statPoints.filter(
       (point) =>
         getPlayerTeam(point.serverId) === teamName
     )
@@ -412,7 +489,7 @@ function App() {
       (point) => point.winningTeam === teamName
     ).length
 
-    const receivingPoints = points.filter(
+    const receivingPoints = statPoints.filter(
       (point) =>
         getPlayerTeam(point.serverId) !== teamName
     )
@@ -421,13 +498,13 @@ function App() {
       (point) => point.winningTeam === teamName
     ).length
 
-    const teamAces = points.filter(
+    const teamAces = statPoints.filter(
       (point) =>
         point.winningTeam === teamName &&
         point.outcome === "Ace"
     ).length
 
-    const teamDoubleFaults = points.filter(
+    const teamDoubleFaults = statPoints.filter(
       (point) =>
         getPlayerTeam(point.serverId) === teamName &&
         point.outcome === "Double Fault"
@@ -1072,7 +1149,8 @@ function App() {
 
     const serverId = activeServerId
     const currentTime = videoRef.current.currentTime
-    const serveAttempt = currentPointServes.length + 1
+    const serveAttempt =
+      currentPointServes.filter((serve) => !serve.replayed).length + 1
 
     const newServe = {
       id: crypto.randomUUID(),
@@ -1269,7 +1347,8 @@ function App() {
       id: crypto.randomUUID(),
       timestamp: videoRef.current?.currentTime ?? null,
       playerId,
-      type: selectedTouchType
+      type: selectedTouchType === WEAK_SET ? "Set" : selectedTouchType,
+      ...(selectedTouchType === WEAK_SET ? { weak: true } : {})
     }
 
     setCurrentPointRally([
@@ -1314,6 +1393,46 @@ function App() {
     )
   }
 
+  // IRF 3.2.5: a replay over a disputed serve keeps the fault count,
+  // so only that serve is voided. Any other replay (hinder, broken
+  // equipment, interference) goes back to the first serve.
+  function replayServe(reason) {
+    const latest = currentPointServes[currentPointServes.length - 1]
+
+    if (!latest || latest.replayed) {
+      return
+    }
+
+    saveSnapshot()
+
+    const voidedIds =
+      reason === "Serve Dispute"
+        ? [latest.id]
+        : currentPointServes
+          .filter((serve) => !serve.replayed)
+          .map((serve) => serve.id)
+
+    const markReplayed = (serve) =>
+      voidedIds.includes(serve.id)
+        ? { ...serve, replayed: true, replayReason: reason }
+        : serve
+
+    setServes(serves.map(markReplayed))
+    setCurrentPointServes(currentPointServes.map(markReplayed))
+    setCurrentPointRally([])
+    setSelectedTouchType(null)
+
+    setManualEnding(false)
+    setPendingWinningTeam(null)
+    setPendingOutcome(null)
+    setPendingViolationType(null)
+
+    setServeStatus(null)
+    setSelectedFaultType(null)
+    setSelectedHand("None")
+    setSelectedServeType("None")
+  }
+
   function deleteServe(serve) {
     const containingPoint = points.find((point) =>
       point.serves.some((pointServe) => pointServe.id === serve.id)
@@ -1333,13 +1452,16 @@ function App() {
 
     saveSnapshot()
 
-    // Renumber the attempts left in the unfinished point.
+    // Renumber the attempts left in the unfinished point. Replayed
+    // serves keep the number they had.
+    let attempt = 0
     const remaining = currentPointServes
       .filter((pointServe) => pointServe.id !== serve.id)
-      .map((pointServe, index) => ({
-        ...pointServe,
-        serveAttempt: index + 1
-      }))
+      .map((pointServe) =>
+        pointServe.replayed
+          ? pointServe
+          : { ...pointServe, serveAttempt: ++attempt }
+      )
 
     setServes(
       serves
@@ -1443,6 +1565,115 @@ function App() {
       .padStart(2, "0")}`
   }
 
+  function importMatchJSON(event) {
+    const file = event.target.files[0]
+    event.target.value = ""
+
+    if (!file) {
+      return
+    }
+
+    file.text().then((text) => {
+      let data
+
+      try {
+        data = JSON.parse(text)
+      } catch {
+        alert("That file is not valid JSON.")
+        return
+      }
+
+      if (
+        !Array.isArray(data?.serves) ||
+        !Array.isArray(data?.points)
+      ) {
+        alert("That file is not a Roundnet Analyzer JSON export.")
+        return
+      }
+
+      if (Number(data.formatVersion ?? 1) > EXPORT_FORMAT_VERSION) {
+        alert("That export is from a newer version of the app.")
+        return
+      }
+
+      const hasMatchData =
+        serves.length > 0 ||
+        points.length > 0 ||
+        currentPointServes.length > 0
+
+      if (
+        hasMatchData &&
+        !window.confirm(
+          "Open this export? It replaces the match you are tagging now."
+        )
+      ) {
+        return
+      }
+
+      const importedPoints = data.points.map((point) => ({
+        ...point,
+        gameNumber: point.gameNumber ?? 1,
+        serves: point.serves ?? [],
+        rally: point.rally ?? []
+      }))
+
+      // Serves that are not part of a finished point belong to the
+      // point that was being tagged when the file was exported.
+      const finishedServeIds = new Set(
+        importedPoints.flatMap((point) =>
+          point.serves.map((serve) => serve.id)
+        )
+      )
+
+      const unfinishedServes = data.serves.filter(
+        (serve) => !finishedServeIds.has(serve.id)
+      )
+
+      // Player ids are fixed by team slot; take the names by id.
+      setPlayers((currentPlayers) =>
+        currentPlayers.map((player) => ({
+          ...player,
+          name:
+            data.players?.find(
+              (imported) => imported.id === player.id
+            )?.name ?? player.name
+        }))
+      )
+
+      setMatchId(data.match?.id ?? crypto.randomUUID())
+      setPlayedOn(data.match?.playedOn ?? "")
+      setPointsTo(data.match?.pointsTo ?? 21)
+      setHardCap(data.match?.hardCap ?? null)
+      setGameNumber(
+        Math.max(1, ...importedPoints.map((point) => point.gameNumber))
+      )
+
+      setServes(data.serves)
+      setPoints(importedPoints)
+      setCurrentPointServes(unfinishedServes)
+      setCurrentPointRally([])
+
+      setActionHistory([])
+      setStatsGame("All")
+
+      setSelectedPlayerId(null)
+      setSelectedReceiverId(null)
+      setSelectedTouchType(null)
+      setSelectedHand("None")
+      setSelectedServeType("None")
+      setServeStatus(null)
+      setSelectedFaultType(null)
+
+      setPendingWinningTeam(null)
+      setPendingOutcome(null)
+      setPendingViolationType(null)
+      setManualEnding(false)
+
+      cancelServeEdit()
+      cancelPointEdit()
+    })
+  }
+
   function updatePlayerName(index, newName) {
     setPlayers((currentPlayers) =>
       currentPlayers.map((player, playerIndex) =>
@@ -1459,7 +1690,9 @@ function App() {
   function exportMatchJSON() {
     const exportServe = (serve) => ({
       ...serve,
-      receiverId: serve.receiverId ?? null
+      receiverId: serve.receiverId ?? null,
+      replayed: serve.replayed ?? false,
+      replayReason: serve.replayReason ?? null
     })
 
     const matchData = {
@@ -1521,7 +1754,9 @@ function App() {
       "Legality",
       "Fault Type",
       "Played Through",
-      "Result"
+      "Result",
+      "Replayed",
+      "Replay Reason"
     ]
 
     const rows = serves.map((serve, index) => [
@@ -1540,7 +1775,9 @@ function App() {
       serve.legality,
       serve.faultType ?? "",
       serve.playedThrough ?? "",
-      serve.result ?? ""
+      serve.result ?? "",
+      serve.replayed ? "true" : "false",
+      serve.replayReason ?? ""
     ])
 
     const csv = [
@@ -1639,6 +1876,7 @@ function App() {
 
   const rallyStarted =
     latestServe &&
+    !latestServe.replayed &&
     (
       (
         latestServe.legality === "Legal" &&
@@ -1670,11 +1908,33 @@ function App() {
     }
   })
 
+  // The rally goes step by step: after a return or a defensive touch
+  // the tagger first records any set, then who hit the ball. "No set"
+  // skips the first step for this one spot in the rally.
+  const [skippedSetStep, setSkippedSetStep] = useState(null)
+
+  const setStepKey = `${currentPointServes[0]?.id}:${currentPointRally.length}`
+
+  const lastDefenseIndex = currentPointRally.findLastIndex(
+    (touch) => touch.type === "Defensive Touch"
+  )
+
+  const setMade = currentPointRally
+    .slice(lastDefenseIndex + 1)
+    .some((touch) => EXTRA_TOUCH_TYPES.includes(touch.type))
+
+  const askForSet =
+    rallyStarted &&
+    !manualEnding &&
+    !lastHit &&
+    !setMade &&
+    skippedSetStep !== setStepKey
+
   // -----------------------------
   // Match statistics
   // -----------------------------
 
-  const totalServes = serves.length
+  const totalServes = statServes.length
 
   // Game score after each point, for the points list.
   const runningScores = points.map((point, index) =>
@@ -1688,23 +1948,23 @@ function App() {
     )
   )
 
-  const legalServes = serves.filter(
+  const legalServes = statServes.filter(
     (serve) => serve.legality === "Legal"
   ).length
 
-  const faultServes = serves.filter(
+  const faultServes = statServes.filter(
     (serve) => serve.legality === "Fault"
   ).length
 
-  const aces = serves.filter(
+  const aces = statServes.filter(
     (serve) => serve.result === "Ace"
   ).length
 
-  const doubleFaults = points.filter(
+  const doubleFaults = statPoints.filter(
     (point) => point.outcome === "Double Fault"
   ).length
 
-  const firstServes = serves.filter(
+  const firstServes = statServes.filter(
     (serve) => serve.serveAttempt === 1
   )
 
@@ -1712,7 +1972,7 @@ function App() {
     (serve) => serve.legality === "Legal"
   ).length
 
-  const secondServes = serves.filter(
+  const secondServes = statServes.filter(
     (serve) => serve.serveAttempt === 2
   )
 
@@ -1734,7 +1994,7 @@ function App() {
 
   const playerStats = players
     .map((player) => {
-      const playerServes = serves.filter(
+      const playerServes = statServes.filter(
         (serve) =>
           serve.playerId === player.id
       )
@@ -1776,48 +2036,52 @@ function App() {
             serve.legality === "Legal"
         ).length
 
-      const playerDoubleFaults = points.filter(
+      const playerDoubleFaults = statPoints.filter(
         (point) =>
           point.serverId === player.id &&
           point.outcome === "Double Fault"
       ).length
 
-      const playerKills = points.filter(
+      const playerKills = statPoints.filter(
         (point) =>
           point.outcome === "Kill" &&
           point.responsiblePlayerId === player.id
       ).length
 
-      const playerOffensiveErrors = points.filter(
+      const playerOffensiveErrors = statPoints.filter(
         (point) =>
           point.outcome === "Offensive Error" &&
           point.responsiblePlayerId === player.id
       ).length
 
-      const playerDefensiveErrors = points.filter(
+      const playerDefensiveErrors = statPoints.filter(
         (point) =>
           point.outcome === "Defensive Error" &&
           point.responsiblePlayerId === player.id
       ).length
 
-      const playerReceiveErrors = points.filter(
+      const playerReceiveErrors = statPoints.filter(
         (point) =>
           point.outcome === "Receive Error" &&
           point.responsiblePlayerId === player.id
       ).length
 
-      const playerViolations = points.filter(
+      const playerViolations = statPoints.filter(
         (point) =>
           point.outcome === "Violation" &&
           point.responsiblePlayerId === player.id
       ).length
 
       // Rally touches
-      const playerTouches = points.flatMap(
+      const playerTouches = statPoints.flatMap(
         (point) => point.rally ?? []
       ).filter(
         (touch) => touch.playerId === player.id
       )
+
+      const weakSets = playerTouches.filter(
+        (touch) => touch.type === "Set" && touch.weak
+      ).length
 
       const lostDefensiveTouches = playerTouches.filter(
         (touch) =>
@@ -1835,7 +2099,7 @@ function App() {
       )
 
       // Receiving
-      const servesReceived = serves.filter(
+      const servesReceived = statServes.filter(
         (serve) =>
           serve.receiverId === player.id
       )
@@ -1916,7 +2180,7 @@ function App() {
       const playerTeam =
         getPlayerTeam(player.id)
 
-      const playerPointsServed = points.filter(
+      const playerPointsServed = statPoints.filter(
         (point) =>
           point.serverId === player.id
       )
@@ -1930,7 +2194,7 @@ function App() {
       const firstServePoints =
         playerPointsServed.filter(
           (point) =>
-            point.serves.length === 1
+            countedServes(point).length === 1
         )
 
       const firstServePointWins =
@@ -1942,7 +2206,7 @@ function App() {
       const secondServePoints =
         playerPointsServed.filter(
           (point) =>
-            point.serves.length === 2
+            countedServes(point).length === 2
         )
 
       const secondServePointWins =
@@ -1990,6 +2254,7 @@ function App() {
         defensiveTouches: touchCounts["Defensive Touch"],
         lostDefensiveTouches,
         sets: touchCounts["Set"],
+        weakSets,
         farSets: touchCounts["Far Set"],
 
         servesReceived: servesReceived.length,
@@ -2013,6 +2278,164 @@ function App() {
         stats.farSets > 0 ||
         stats.servesReceived > 0
     )
+
+  // -----------------------------
+  // Keyboard shortcuts
+  // -----------------------------
+
+  function chooseFaultType(faultType) {
+    if (NO_PLAY_THROUGH_FAULTS.includes(faultType)) {
+      markServe("Fault", faultType, false)
+    } else {
+      setSelectedFaultType(faultType)
+    }
+  }
+
+  // The ball hit the ground before the team could hit it back: a
+  // receive error off the serve, a defensive error after a defensive
+  // touch, charged to whoever let it drop.
+  function dropBall(playerId) {
+    finishPoint(
+      getOtherTeam(hittingTeam),
+      lastDefensiveTouch ? "Defensive Error" : "Receive Error",
+      playerId
+    )
+  }
+
+  function handleShortcut(event) {
+    const target = event.target
+
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+    ) {
+      return
+    }
+
+    const key = event.key.toLowerCase()
+
+    // The video's own controls already handle these.
+    if (
+      target instanceof HTMLVideoElement &&
+      [" ", "arrowleft", "arrowright"].includes(key)
+    ) {
+      return
+    }
+
+    if ((event.ctrlKey || event.metaKey) && key === "z") {
+      event.preventDefault()
+      undoLastAction()
+      return
+    }
+
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return
+    }
+
+    const video = videoRef.current
+    const editing = editingServeId !== null || editingPointId !== null
+    const tagging = !editing && !gameWinner
+    const choosingServe = tagging && !rallyStarted
+    const inRally = tagging && rallyStarted && !manualEnding
+
+    let handled = true
+
+    if (key === " " && video) {
+      if (video.paused) {
+        video.play()
+      } else {
+        video.pause()
+      }
+    } else if (key === "arrowleft" && video) {
+      video.currentTime = Math.max(0, video.currentTime - 5)
+    } else if (key === "arrowright" && video) {
+      video.currentTime += 5
+    } else if (key === "," && video) {
+      video.pause()
+      video.currentTime = Math.max(0, video.currentTime - 1 / 30)
+    } else if (key === "." && video) {
+      video.pause()
+      video.currentTime += 1 / 30
+    } else if (key === "escape") {
+      setServeStatus(null)
+      setSelectedFaultType(null)
+      setSelectedTouchType(null)
+      setManualEnding(false)
+      setPendingWinningTeam(null)
+      setPendingOutcome(null)
+      setPendingViolationType(null)
+    } else if (choosingServe && (key === "l" || key === "r")) {
+      setSelectedHand(key === "l" ? "Left" : "Right")
+    } else if (choosingServe && SERVE_TYPE_KEYS[key]) {
+      setSelectedServeType(SERVE_TYPE_KEYS[key])
+    } else if (choosingServe && video && key === "g") {
+      setServeStatus("Legal")
+      setSelectedFaultType(null)
+    } else if (choosingServe && video && key === "f") {
+      setServeStatus("Fault")
+    } else if (serveStatus === "Legal" && key === "a") {
+      markServe("Ace")
+    } else if (serveStatus === "Legal" && key === "enter") {
+      markServe("Returned")
+    } else if (
+      serveStatus === "Fault" &&
+      /^[0-9]$/.test(key) &&
+      SERVE_FAULT_TYPES[(Number(key) + 9) % 10]
+    ) {
+      chooseFaultType(SERVE_FAULT_TYPES[(Number(key) + 9) % 10])
+    } else if (
+      serveStatus === "Fault" &&
+      selectedFaultType &&
+      (key === "y" || key === "n")
+    ) {
+      markServe("Fault", selectedFaultType, key === "y")
+    } else if (askForSet && key === "h") {
+      setSelectedTouchType(null)
+      setSkippedSetStep(setStepKey)
+    } else if (
+      inRally &&
+      !lastHit &&
+      !askForSet &&
+      (key === "1" || key === "2")
+    ) {
+      const hitter = players.filter(
+        (player) => getPlayerTeam(player.id) === hittingTeam
+      )[Number(key) - 1]
+
+      if (hitter) {
+        addTouch("Hit", hitter.id)
+      }
+    } else if (askForSet && key === "x") {
+      setSelectedTouchType(BALL_DROPPED)
+    } else if (inRally && lastHit && key === "k") {
+      finishPoint(hittingTeam, "Kill", lastHit.playerId)
+    } else if (inRally && lastHit && key === "o") {
+      finishPoint(
+        getOtherTeam(hittingTeam),
+        "Offensive Error",
+        lastHit.playerId
+      )
+    } else {
+      handled = false
+    }
+
+    if (handled) {
+      event.preventDefault()
+
+      // Otherwise Space or Enter would also press the focused button.
+      if (document.activeElement instanceof HTMLButtonElement) {
+        document.activeElement.blur()
+      }
+    }
+  }
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleShortcut)
+
+    return () =>
+      window.removeEventListener("keydown", handleShortcut)
+  })
 
   return (
     <div className="app-shell">
@@ -2059,6 +2482,25 @@ function App() {
                 </div>
               </div>
             )}
+
+            {/* KEYBOARD SHORTCUTS */}
+
+            <details className="shortcuts-panel">
+              <summary>Keyboard Shortcuts</summary>
+
+              <dl className="shortcut-list">
+                {KEYBOARD_SHORTCUTS.map(([keys, action]) => (
+                  <div key={action} style={{ display: "contents" }}>
+                    <dt>
+                      {keys.map((key) => (
+                        <kbd key={key}>{key}</kbd>
+                      ))}
+                    </dt>
+                    <dd>{action}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
           </div>
 
           <aside className="controls-panel">
@@ -2078,6 +2520,26 @@ function App() {
                 >
                   Start New Match
                 </button>
+              </div>
+
+              <div className="export-actions">
+                <span className="export-label">Import Data</span>
+
+                <div className="export-buttons">
+                  <button
+                    onClick={() => importInputRef.current?.click()}
+                  >
+                    Open JSON Export
+                  </button>
+
+                  <input
+                    ref={importInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    hidden
+                    onChange={importMatchJSON}
+                  />
+                </div>
               </div>
 
               <div className="export-actions">
@@ -2484,11 +2946,7 @@ function App() {
                           ? "selected-button"
                           : ""
                       }
-                      onClick={() =>
-                        NO_PLAY_THROUGH_FAULTS.includes(faultType)
-                          ? markServe("Fault", faultType, false)
-                          : setSelectedFaultType(faultType)
-                      }
+                      onClick={() => chooseFaultType(faultType)}
                     >
                       {faultType}
                     </button>
@@ -2536,7 +2994,8 @@ function App() {
 
             {rallyStarted &&
               !manualEnding &&
-              !lastHit && (
+              !lastHit &&
+              !askForSet && (
                 <div className="control-section">
                   <h2>Who Hit the Ball?</h2>
 
@@ -2554,32 +3013,6 @@ function App() {
                           {player.name}
                         </button>
                       ))}
-
-                    {lastDefensiveTouch ? (
-                      <button
-                        onClick={() =>
-                          finishPoint(
-                            getOtherTeam(hittingTeam),
-                            "Defensive Error",
-                            lastDefensiveTouch.playerId
-                          )
-                        }
-                      >
-                        Not returned (Defensive Error)
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() =>
-                          finishPoint(
-                            servingTeam,
-                            "Receive Error",
-                            currentPointReceiverId
-                          )
-                        }
-                      >
-                        Not returned (Receive Error)
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
@@ -2670,14 +3103,14 @@ function App() {
                 </div>
               )}
 
-            {/* RALLY: SETS AND THE TOUCH LOG */}
+            {/* RALLY: SET BEFORE THE HIT */}
 
-            {rallyStarted && !manualEnding && (
+            {askForSet && (
               <div className="control-section">
                 <h2>Rally Touches</h2>
 
                 <div className="button-group">
-                  {EXTRA_TOUCH_TYPES.map((type) => (
+                  {[...EXTRA_TOUCH_TYPES, WEAK_SET].map((type) => (
                     <button
                       key={type}
                       className={
@@ -2697,14 +3130,40 @@ function App() {
                     </button>
                   ))}
 
-                  <button onClick={() => setManualEnding(true)}>
-                    Point Ended Another Way
+                  <button
+                    onClick={() => {
+                      setSelectedTouchType(null)
+                      setSkippedSetStep(setStepKey)
+                    }}
+                  >
+                    Straight to the Hit
+                  </button>
+
+                  <button
+                    className={
+                      selectedTouchType === BALL_DROPPED
+                        ? "selected-button"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedTouchType(
+                        selectedTouchType === BALL_DROPPED
+                          ? null
+                          : BALL_DROPPED
+                      )
+                    }
+                  >
+                    Ball Dropped
                   </button>
                 </div>
 
                 {selectedTouchType && (
                   <div className="touch-player-picker">
-                    <span>Who made the {selectedTouchType.toLowerCase()}?</span>
+                    <span>
+                      {selectedTouchType === BALL_DROPPED
+                        ? `Who let it drop? (${lastDefensiveTouch ? "defensive" : "receive"} error)`
+                        : `Who made the ${selectedTouchType.toLowerCase()}?`}
+                    </span>
 
                     <div className="button-group">
                       {players
@@ -2716,7 +3175,9 @@ function App() {
                           <button
                             key={player.id}
                             onClick={() =>
-                              recordTouch(player.id)
+                              selectedTouchType === BALL_DROPPED
+                                ? dropBall(player.id)
+                                : recordTouch(player.id)
                             }
                           >
                             {player.name}
@@ -2725,6 +3186,14 @@ function App() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* RALLY SO FAR */}
+
+            {rallyStarted && !manualEnding && (
+              <div className="control-section">
+                <h2>Rally So Far</h2>
 
                 {currentPointRally.length > 0 && (
                   <ul className="touch-list">
@@ -2733,6 +3202,7 @@ function App() {
                         <span>
                           {touch.type}
                           {touch.controlled === false ? " (lost)" : ""}
+                          {touch.weak ? " (weak)" : ""}
                           {" · "}
                           {getPlayerName(touch.playerId)}
                           {touch.timestamp !== null
@@ -2751,8 +3221,15 @@ function App() {
                     ))}
                   </ul>
                 )}
+
+                <div className="button-group">
+                  <button onClick={() => setManualEnding(true)}>
+                    Point Ended Another Way
+                  </button>
+                </div>
               </div>
             )}
+
 
             {/* POINT WINNER (any other ending) */}
 
@@ -2905,6 +3382,33 @@ function App() {
                   </div>
                 </div>
               )}
+
+            {/* REPLAY */}
+
+            {latestServe && !latestServe.replayed && (
+              <div className="control-section">
+                <h2>Replay</h2>
+
+                <div className="button-group">
+                  <button onClick={() => replayServe("Serve Dispute")}>
+                    Serve Dispute
+                  </button>
+
+                  <button onClick={() => replayServe("Hinder")}>
+                    Hinder
+                  </button>
+
+                  <button onClick={() => replayServe("Other")}>
+                    Other
+                  </button>
+                </div>
+
+                <p className="replay-note">
+                  A serve dispute replays that serve and keeps the fault count. Any other replay starts again from the first serve (IRF 3.2.5).
+                </p>
+              </div>
+            )}
+
           </aside>
         </section>
 
@@ -2945,6 +3449,9 @@ function App() {
 
                       <span>
                         {formatTime(serve.timestamp)} · {serve.legality}
+                        {serve.replayed
+                          ? ` · Replayed (${serve.replayReason ?? "Other"})`
+                          : ""}
                       </span>
                     </button>
 
@@ -3397,6 +3904,7 @@ function App() {
                                   <span>
                                     {touch.type}
                                     {touch.controlled === false ? " (lost)" : ""}
+                                    {touch.weak ? " (weak)" : ""}
                                     {" · "}
                                     {getPlayerName(touch.playerId)}
                                   </span>
@@ -3465,7 +3973,27 @@ function App() {
         <section className="stats-section">
 
           <div className="stats-header">
-            <h2>Match Statistics</h2>
+            <h2>
+              {statsGame === "All"
+                ? "Match Statistics"
+                : `Game ${statsGame} Statistics`}
+            </h2>
+
+            {gameNumbers.length > 1 && (
+              <div className="button-group stats-filter">
+                {["All", ...gameNumbers].map((game) => (
+                  <button
+                    key={game}
+                    className={
+                      statsGame === game ? "selected-button" : ""
+                    }
+                    onClick={() => setStatsGame(game)}
+                  >
+                    {game === "All" ? "All Games" : `Game ${game}`}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="stat-card-grid">
@@ -3748,6 +4276,15 @@ function App() {
                     </div>
 
                     <div className="stat-row">
+                      <span>Kill %</span>
+                      <strong>
+                        {stats.hits > 0
+                          ? `${percentage(stats.kills, stats.hits)}%`
+                          : "–"}
+                      </strong>
+                    </div>
+
+                    <div className="stat-row">
                       <span>
                         Offensive Errors
                       </span>
@@ -3990,6 +4527,19 @@ function App() {
 
                                 {stats.hits > 0 && (
                                   <div className="stat-row">
+                                    <span>Kill %</span>
+                                    <strong>
+                                      {percentage(
+                                        stats.kills,
+                                        stats.hits
+                                      )}
+                                      %
+                                    </strong>
+                                  </div>
+                                )}
+
+                                {stats.hits > 0 && (
+                                  <div className="stat-row">
                                     <span>
                                       Hitting Efficiency
                                     </span>
@@ -4035,6 +4585,19 @@ function App() {
                                     {stats.sets}
                                   </strong>
                                 </div>
+
+                                {stats.sets > 0 && (
+                                  <div className="stat-row">
+                                    <span>Weak Set %</span>
+                                    <strong>
+                                      {percentage(
+                                        stats.weakSets,
+                                        stats.sets
+                                      )}
+                                      %
+                                    </strong>
+                                  </div>
+                                )}
 
                                 <div className="stat-row">
                                   <span>Far Sets</span>
