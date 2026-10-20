@@ -968,3 +968,61 @@ button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ========================================
+   MATCH INFO & RALLY TOUCHES
+======================================== */
+
+.match-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.match-info label,
+.game-number {
+  display: grid;
+  gap: 4px;
+
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.game-number .button-group {
+  align-items: center;
+}
+
+.match-id {
+  margin: 8px 0 0;
+
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.touch-player-picker {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.touch-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+
+  list-style: none;
+}
+
+.touch-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  font-size: 0.9rem;
+}
