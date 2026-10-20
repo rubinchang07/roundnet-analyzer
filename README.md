@@ -31,7 +31,7 @@ A lightweight, browser-based match analysis tool for reviewing roundnet footage,
 
 - **Serve Parameters:** Track server, receiver, serving hand (left/right), serve type, and attempt number (first/second serve).
 - **Outcome Logging:** Record legal serves, faults by type, played-through faults, aces, and returned serves.
-- **IRF Fault Types:** Tag every service fault in the IRF rules (July 2026, 4.5), from high, rim and pocket serves to short tosses, same-hand tosses and the 3-second limit. Faults that can never be played through (4.4.2.2) close the attempt straight away.
+- **IRF Fault Types:** Tag every service fault in the IRF rules (July 2026, 4.5), from high, rim and pocket serves to short tosses, same-hand tosses and the 3-second limit. Faults that can never be played through (a miss, double rim, foot fault, dropped toss or late toss) close the attempt straight away.
 - **IRF Serving Order:** After the first point of a game, the server and receiver are filled in from the IRF serving order (4.2). Pick a different player to override it.
 - **Automatic Double-Fault Detection:** Detect second-serve faults and automatically resolve double-fault points.
 
@@ -68,7 +68,7 @@ The JSON export only adds fields to the original layout, so older readers keep w
 
 - `formatVersion`: `3`.
 - `match`: `{ "id": "<uuid>", "playedOn": "YYYY-MM-DD" | null, "pointsTo": 21, "hardCap": null }`. The id is generated per match and changes on Start New Match. `pointsTo` and `hardCap` are new in v3.
-- `serves[].faultType` (v3 values): `"High"`, `"Rim"`, `"Pocket"`, `"Missed Net"`, `"Back Third"`, `"No Hit Zone"`, `"Short Toss"`, `"Same Hand"`, `"Service Line"`, `"Footwork"`, `"Catch"`, `"Multiple Contact"`, `"Dropped Toss"`, `"Three Seconds"`.
+- `serves[].faultType` (v3 values): `"High"`, `"Rim"`, `"Pocket"`, `"Missed Net"`, `"Double Rim"`, `"No Hit Zone"`, `"Short Toss"`, `"Same Hand"`, `"Foot on Line"`, `"Catch"`, `"Dropped Toss"`, `"Three Seconds"`.
 - `points[].outcome` (v3 values): adds `"Defensive Error"`, `"Receive Error"` and `"Violation"` to `"Ace"`, `"Double Fault"`, `"Kill"`, `"Offensive Error"` and `"Other"`.
 - `points[].violationType` (v3): which infraction, for `"Violation"` points, otherwise `null`. One of `"Under Three Touches"`, `"Four Hits"`, `"Double Contact"`, `"Two-Handed Hit"`, `"Catch"`, `"No Hit Zone"`, `"Set Contact"`, `"Out of Turn"`, `"Hit Own Team"`, `"Cylinder"`, `"Hinder"`, `"Serve Movement"`, `"Delay or Conduct"`.
 - `serves[].receiverId`: the receiving player's id, or `null` when not tagged.

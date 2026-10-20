@@ -28,22 +28,22 @@ const SERVE_FAULT_TYPES = [
   "Rim",           // 4.5.6  rim or legs hit directly
   "Pocket",        // 4.5.7  side pocket
   "Missed Net",    // 4.5.10 misses the set entirely
-  "Back Third",    // 4.5.8  out of the back third, not moving forward
+  "Double Rim",    // 4.5.11 hits the set more than once
   "No Hit Zone",   // 4.5.15 lands on or inside the NHZ lines
   "Short Toss",    // 4.5.1  struck before travelling 10 cm
   "Same Hand",     // 4.5.14 released and struck with the same hand
-  "Service Line",  // 4.5.2  contact on or inside the service line
-  "Footwork",      // 4.5.4–4.5.5 pivot or step foot not kept planted
+  "Foot on Line",  // 4.5.2, 4.5.4–4.5.5 on the line, into the circle, or a moved foot
   "Catch",         // 4.5.3
-  "Multiple Contact", // 4.5.11 hits the set more than once
   "Dropped Toss",  // 4.5.12 released and not struck
   "Three Seconds"  // 4.5.13 no toss within 3 seconds of "service"
 ]
 
-// 4.4.2.2: these can never be played through.
+// Never played through: 4.4.2.2 for a miss, double rim, dropped toss
+// or late toss, and foot faults as well.
 const NO_PLAY_THROUGH_FAULTS = [
   "Missed Net",
-  "Multiple Contact",
+  "Double Rim",
+  "Foot on Line",
   "Dropped Toss",
   "Three Seconds"
 ]
