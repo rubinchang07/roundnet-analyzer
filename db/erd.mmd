@@ -1,0 +1,129 @@
+erDiagram
+    PLAYER ||--o{ PLAYER_EXTERNAL_ID : "known as"
+    PLAYER ||--o{ TEAM : "player_lo"
+    PLAYER ||--o{ TEAM : "player_hi"
+    TOURNAMENT ||--|{ DIVISION : has
+    DIVISION ||--o{ ENTRY : registers
+    TEAM ||--o{ ENTRY : "enters as"
+    DIVISION |o--o{ MATCH : "hosts (null for scrimmage)"
+    TEAM ||--o{ MATCH : "team1 / team2"
+    IMPORT_BATCH |o--o{ MATCH : loaded
+    IMPORT_BATCH |o--o{ GAME : loaded
+    MATCH ||--|{ GAME : "best of 1/3/5"
+    GAME ||--o{ POINT : "rally by rally"
+    PLAYER ||--o{ POINT : "server / receiver"
+    POINT ||--|{ SERVE_ATTEMPT : "1 or 2"
+    POINT ||--o{ RALLY_EVENT : "touch log"
+    PLAYER |o--o{ RALLY_EVENT : touches
+
+    PLAYER {
+        bigint player_id PK
+        text display_name
+        char country_code
+        char dominant_hand
+    }
+    PLAYER_EXTERNAL_ID {
+        text source PK
+        text external_id PK
+        bigint player_id FK
+    }
+    TEAM {
+        bigint team_id PK
+        bigint player_lo_id FK "lo < hi, pair unique"
+        bigint player_hi_id FK
+    }
+    TOURNAMENT {
+        bigint tournament_id PK
+        text name UK
+        date start_date UK
+        date end_date
+        text tier
+        text city
+    }
+    DIVISION {
+        bigint division_id PK
+        bigint tournament_id FK
+        text name
+        text category
+        text skill_level
+    }
+    ENTRY {
+        bigint entry_id PK
+        bigint division_id FK
+        bigint team_id FK
+        text team_name
+        int seed
+        int final_place
+    }
+    MATCH {
+        bigint match_id PK
+        match_context context
+        bigint division_id FK
+        match_stage stage
+        text round_label
+        bigint team1_id FK
+        bigint team2_id FK
+        timestamptz played_at
+        smallint best_of
+        match_status status
+        smallint winner_side "1 or 2"
+        text external_id
+        bigint import_batch_id FK
+    }
+    GAME {
+        bigint game_id PK
+        bigint match_id FK
+        smallint game_number
+        smallint points_to
+        smallint hard_cap
+        smallint team1_score
+        smallint team2_score
+        boolean complete "false = partial tagging"
+        smallint winner_side "generated"
+        bigint import_batch_id FK
+    }
+    POINT {
+        bigint point_id PK
+        bigint game_id FK
+        smallint point_number
+        text external_id UK "Analyzer UUID"
+        smallint serving_side
+        bigint server_player_id FK
+        bigint receiver_player_id FK "nullable"
+        smallint winner_side
+        point_end_reason end_reason
+        point_violation violation_type
+        text source_outcome
+        bigint ended_by_player_id FK
+        smallint possessions
+    }
+    SERVE_ATTEMPT {
+        bigint point_id PK
+        smallint attempt_number PK
+        text external_id UK
+        serve_result result
+        serve_fault fault_type
+        boolean played_through
+        char hand
+        text serve_style
+        numeric video_s
+    }
+    RALLY_EVENT {
+        bigint point_id PK
+        smallint seq PK
+        text external_id UK
+        rally_event_type event_type
+        bigint player_id FK
+        smallint side
+        numeric video_s
+        jsonb detail
+    }
+    IMPORT_BATCH {
+        bigint import_batch_id PK
+        text source
+        text format_version
+        text file_sha256 UK
+        jsonb payload
+        import_status status
+        jsonb warnings
+    }
