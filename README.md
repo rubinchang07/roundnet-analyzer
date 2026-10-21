@@ -114,6 +114,7 @@ Setup, the import format and the example queries are documented in [db/README.md
 - **Media Handling:** HTML5 Video
 - **Styling:** CSS3
 - **Storage:** Browser `localStorage`
+- **Testing:** Vitest unit tests for scoring and serving-order rules, run in GitHub Actions
 - **Analytics Database:** PostgreSQL 16 (SQL, PL/pgSQL), Docker Compose, GitHub Actions
 
 ---
@@ -176,6 +177,16 @@ Install a current version of [Node.js](https://nodejs.org/) and npm.
    ```
 
 4. Open the local URL displayed by Vite in your browser.
+
+### Running Tests
+
+The game rules in `src/rules.js` (win by two, hard cap, IRF serving order, replayed serves) are covered by unit tests:
+
+```bash
+npm test
+```
+
+Use `npm run test:watch` to rerun the tests as you edit.
 
 ---
 
